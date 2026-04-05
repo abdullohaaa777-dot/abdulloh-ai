@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, inject, signal, computed, ViewChild
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
-import { DermatologyService, DermatologyCase } from '../../services/dermatology';
+import { DermatologyService } from '../../services/dermatology';
+import { DermatologyCase } from '../../models/dermatology';
 
 @Component({
   selector: 'app-dermatology-ai',
@@ -63,11 +64,11 @@ export class DermatologyAIComponent {
     return list;
   });
 
-  createNewCase() {
-    const newCase = this.dermService.createCase();
+  async createNewCase() {
+    const newCase = await this.dermService.createCase();
     this.activeCase.set(newCase);
     this.view.set('chat');
-    this.addAssistantMessage("Assalomu alaykum! Men Dermatologik AI yordamchisiman. Sizga teri muammolaringizni tahlil qilishda yordam beraman. Iltimos, avval muammoli joyning rasmini yuklang yoki kamera orqali oling.");
+    await this.addAssistantMessage("Assalomu alaykum! Men Dermatologik AI yordamchisiman. Sizga teri muammolaringizni tahlil qilishda yordam beraman. Iltimos, avval muammoli joyning rasmini yuklang yoki kamera orqali oling.");
   }
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -104,7 +105,7 @@ export class DermatologyAIComponent {
           type: file.type,
           content: 'File content placeholder'
         });
-        this.dermService.updateCase(currentCase);
+        await this.dermService.updateCase(currentCase);
         this.addAssistantMessage(`${file.name} fayli qabul qilindi. Tahlil qilinmoqda...`);
         this.askNextQuestion();
       }
@@ -131,7 +132,7 @@ export class DermatologyAIComponent {
         timestamp: new Date().toISOString()
       });
       
-      this.dermService.updateCase(currentCase);
+      await this.dermService.updateCase(currentCase);
       this.addAssistantMessage(analysis.feedback);
       
       if (analysis.quality === 'good') {
@@ -206,7 +207,7 @@ export class DermatologyAIComponent {
     const currentCase = this.activeCase()!;
     currentCase.chatHistory.push({ role: 'user', text, timestamp: new Date().toISOString() });
     this.userInput.set('');
-    this.dermService.updateCase(currentCase);
+    await this.dermService.updateCase(currentCase);
     
     this.askNextQuestion();
   }
@@ -238,7 +239,7 @@ export class DermatologyAIComponent {
       currentCase.diagnosis = result;
       currentCase.treatmentPlan = result.treatmentPlan;
       currentCase.status = result.urgency === 'emergency' ? 'urgent' : 'completed';
-      this.dermService.updateCase(currentCase);
+      await this.dermService.updateCase(currentCase);
       this.view.set('detail');
     } catch {
       this.addAssistantMessage("Tahlil qilishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.");
@@ -247,19 +248,19 @@ export class DermatologyAIComponent {
     }
   }
 
-  addAssistantMessage(text: string) {
+  async addAssistantMessage(text: string) {
     const currentCase = this.activeCase();
     if (currentCase) {
       currentCase.chatHistory.push({ role: 'assistant', text, timestamp: new Date().toISOString() });
-      this.dermService.updateCase(currentCase);
+      await this.dermService.updateCase(currentCase);
     }
   }
 
-  setBodyLocation(loc: string) {
+  async setBodyLocation(loc: string) {
     const currentCase = this.activeCase();
     if (currentCase) {
       currentCase.bodyLocation = loc;
-      this.dermService.updateCase(currentCase);
+      await this.dermService.updateCase(currentCase);
       this.askNextQuestion();
     }
   }
@@ -286,11 +287,11 @@ export class DermatologyAIComponent {
       note: 'Dori qabul qilindi'
     });
     
-    this.dermService.updateCase(currentCase);
+    await this.dermService.updateCase(currentCase);
   }
 
   // Monitoring
-  addMonitoringLog(itching: number, pain: number, note: string) {
+  async addMonitoringLog(itching: number, pain: number, note: string) {
     const currentCase = this.activeCase();
     if (!currentCase) return;
     
@@ -300,7 +301,7 @@ export class DermatologyAIComponent {
       note
     });
     
-    this.dermService.updateCase(currentCase);
+    await this.dermService.updateCase(currentCase);
     this.view.set('detail');
   }
 }

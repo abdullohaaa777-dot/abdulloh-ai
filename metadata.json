@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Abdulloh AI",
-  "description": "Clinical decision support system with Patient and Doctor modes, featuring AI-powered analysis and risk calculation.",
+  "name": "Abdulloh AI",
+  "description": "Professional medical AI system for clinical decision support, dermatology analysis, and patient monitoring.",
   "requestFramePermissions": [
     "camera",
     "microphone"

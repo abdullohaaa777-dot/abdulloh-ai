@@ -1,106 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
 import { SupabaseService } from './supabase';
-
-export interface DermatologyCase {
-  id: string;
-  userId: string;
-  patientId?: string;
-  role: 'patient' | 'doctor';
-  createdAt: string;
-  updatedAt: string;
-  status: 'active' | 'completed' | 'urgent';
-  
-  // Input data
-  images: { url: string; quality: 'good' | 'blurry'; timestamp: string }[];
-  files: { name: string; type: string; content?: string; insights?: string }[];
-  bodyLocation?: string;
-  
-  // Chat history
-  chatHistory: { role: 'user' | 'assistant'; text: string; timestamp: string }[];
-  currentQuestionIndex: number;
-  answers: Record<string, unknown>;
-  
-  // Analysis results
-  diagnosis?: {
-    main: string;
-    mainProbability: number;
-    differentials: { name: string; probability: number }[];
-    description: string;
-    reasoning: string;
-    supportingSigns: string[];
-    opposingSigns: string[];
-    recommendedTests: string[];
-    urgency: 'low' | 'medium' | 'high' | 'emergency';
-    clinicalNote: string;
-    pathogenesis?: string; // For doctors
-    molecularMechanism?: string; // For doctors
-    redFlags: string[];
-  };
-  
-  // Treatment plan
-  treatmentPlan?: {
-    medications: {
-      name: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-      instruction: string;
-      reason: string;
-      form: 'cream' | 'ointment' | 'gel' | 'tablet' | 'other';
-      adherenceProofs: { timestamp: string; imageUrl: string; note: string }[];
-    }[];
-    generalCare: string[];
-    followUpDate?: string;
-    urgentContactSigns: string[];
-  };
-  
-  // Monitoring
-  monitoringLogs: {
-    timestamp: string;
-    symptoms: {
-      itching: number; // 0-10
-      pain: number; // 0-10
-      spread: 'improving' | 'stable' | 'worsening';
-    };
-    imageUrl?: string;
-    note: string;
-    aiAssessment?: 'improving' | 'stable' | 'worsening';
-  }[];
-  
-  doctorNotes?: string;
-}
-
-export interface DermatologyDiagnosisResult {
-  main: string;
-  mainProbability: number;
-  differentials: { name: string; probability: number }[];
-  description: string;
-  reasoning: string;
-  supportingSigns: string[];
-  opposingSigns: string[];
-  recommendedTests: string[];
-  urgency: 'low' | 'medium' | 'high' | 'emergency';
-  clinicalNote: string;
-  pathogenesis?: string;
-  molecularMechanism?: string;
-  redFlags: string[];
-  treatmentPlan: {
-    medications: {
-      name: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-      instruction: string;
-      reason: string;
-      form: 'cream' | 'ointment' | 'gel' | 'tablet' | 'other';
-      adherenceProofs: { timestamp: string; imageUrl: string; note: string }[];
-    }[];
-    generalCare: string[];
-    followUpDate?: string;
-    urgentContactSigns: string[];
-  };
-}
+import { DermatologyCase, DermatologyDiagnosisResult } from '../models/dermatology';
 
 @Injectable({
   providedIn: 'root'
@@ -112,29 +13,21 @@ export class DermatologyService {
   cases = signal<DermatologyCase[]>([]);
   
   constructor() {
-    this.loadCases();
+    this.init();
   }
 
-  private loadCases() {
-    const stored = localStorage.getItem('dermatologyCases');
-    if (stored) {
-      try {
-        this.cases.set(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse dermatology cases', e);
-      }
+  private async init() {
+    const { data } = await this.supabase.getDermatologyCases();
+    if (data) {
+      this.cases.set(data as DermatologyCase[]);
     }
-  }
-
-  private saveCases() {
-    localStorage.setItem('dermatologyCases', JSON.stringify(this.cases()));
   }
 
   getCases() {
     return this.cases();
   }
 
-  createCase(): DermatologyCase {
+  async createCase(): Promise<DermatologyCase> {
     const newCase: DermatologyCase = {
       id: Math.random().toString(36).substring(2, 15),
       userId: this.supabase.user()?.id || 'anonymous',
@@ -150,14 +43,18 @@ export class DermatologyService {
       monitoringLogs: []
     };
     
-    this.cases.update(c => [newCase, ...c]);
-    this.saveCases();
+    const { data } = await this.supabase.createDermatologyCase(newCase);
+    if (data) {
+      this.cases.update(c => [data as DermatologyCase, ...c]);
+    }
     return newCase;
   }
 
-  updateCase(dCase: DermatologyCase) {
-    this.cases.update(list => list.map(c => c.id === dCase.id ? { ...dCase, updatedAt: new Date().toISOString() } : c));
-    this.saveCases();
+  async updateCase(dCase: DermatologyCase) {
+    const { data } = await this.supabase.updateDermatologyCase(dCase.id, dCase);
+    if (data) {
+      this.cases.update(list => list.map(c => c.id === dCase.id ? data as DermatologyCase : c));
+    }
   }
 
   async analyzeImage(base64: string): Promise<{ quality: 'good' | 'blurry', feedback: string }> {
