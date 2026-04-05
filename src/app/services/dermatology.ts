@@ -105,7 +105,7 @@ export interface DermatologyDiagnosisResult {
   providedIn: 'root'
 })
 export class DermatologyService {
-  private ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  private ai = new GoogleGenAI({ apiKey: typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : '' });
   
   cases = signal<DermatologyCase[]>([]);
   

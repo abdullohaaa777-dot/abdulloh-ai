@@ -5,7 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "dev": "ng serve --host 0.0.0.0 --port 3000 --define GEMINI_API_KEY=\"'${GEMINI_API_KEY}'\" --define SUPABASE_URL=\"'${SUPABASE_URL}'\" --define SUPABASE_ANON_KEY=\"'${SUPABASE_ANON_KEY}'\" --live-reload false",
-    "build": "ng build",
+    "build": "ng build --define GEMINI_API_KEY=\"'${GEMINI_API_KEY:-}'\" --define SUPABASE_URL=\"'${SUPABASE_URL:-}'\" --define SUPABASE_ANON_KEY=\"'${SUPABASE_ANON_KEY:-}'\"",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",

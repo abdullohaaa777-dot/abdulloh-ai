@@ -161,14 +161,14 @@ export class AiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    const key = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : '';
+    this.ai = new GoogleGenAI({ apiKey: key });
   }
 
   async analyzeCase(caseData: CaseData, mode: 'patient' | 'doctor', locale: 'uz' | 'ru' | 'en' = 'uz'): Promise<AnalysisResult> {
-    if (!GEMINI_API_KEY) {
+    if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY) {
       throw new Error('Gemini API kaliti topilmadi. Iltimos, sozlamalarni tekshiring.');
     }
-
     const systemInstruction = `You are "Abdulloh AI", a professional clinical decision support system.
     Your task is to analyze laboratory results and integrate them with existing risk calculations and clinical reasoning.
     
