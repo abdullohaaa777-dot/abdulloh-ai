@@ -2,8 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, computed, ViewChild
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { FormsModule } from '@angular/forms';
-import { DermatologyService } from '../../services/dermatology';
-import { DermatologyCase } from '../../models/dermatology';
+import { DermatologyService, DermatologyCase } from '../../services/dermatology';
 
 @Component({
   selector: 'app-dermatology-ai',
@@ -29,7 +28,6 @@ export class DermatologyAIComponent {
   @ViewChild('video') set video(content: ElementRef<HTMLVideoElement>) {
     if (content) {
       this.videoElement = content;
-      // Small delay to ensure element is ready
       setTimeout(() => this.initCameraStream(), 100);
     }
   }
@@ -64,11 +62,11 @@ export class DermatologyAIComponent {
     return list;
   });
 
-  async createNewCase() {
-    const newCase = await this.dermService.createCase();
+  createNewCase() {
+    const newCase = this.dermService.createCase();
     this.activeCase.set(newCase);
     this.view.set('chat');
-    await this.addAssistantMessage("Assalomu alaykum! Men Dermatologik AI yordamchisiman. Sizga teri muammolaringizni tahlil qilishda yordam beraman. Iltimos, avval muammoli joyning rasmini yuklang yoki kamera orqali oling.");
+    this.addAssistantMessage("Assalomu alaykum! Men Dermatologik AI yordamchisiman. Sizga teri muammolaringizni tahlil qilishda yordam beraman. Iltimos, avval muammoli joyning rasmini yuklang yoki kamera orqali oling.");
   }
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -84,32 +82,30 @@ export class DermatologyAIComponent {
     this.view.set('detail');
   }
 
-  async handleFileUpload(event: Event) {
+  handleFileUpload(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     
     const file = input.files[0];
     const reader = new FileReader();
     
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       const base64 = e.target?.result as string;
       const currentCase = this.activeCase();
       if (!currentCase) return;
       
       if (file.type.startsWith('image/')) {
-        await this.processImage(base64);
+        this.processImage(base64);
       } else {
-        // Handle PDF/Doc (simplified for now)
         currentCase.files.push({
           name: file.name,
           type: file.type,
           content: 'File content placeholder'
         });
-        await this.dermService.updateCase(currentCase);
+        this.dermService.updateCase(currentCase);
         this.addAssistantMessage(`${file.name} fayli qabul qilindi. Tahlil qilinmoqda...`);
         this.askNextQuestion();
       }
-      // Reset input
       input.value = '';
     };
     
@@ -124,30 +120,27 @@ export class DermatologyAIComponent {
     this.isTyping.set(true);
     
     try {
-      const analysis = await this.dermService.analyzeImage(base64);
+      await this.dermService.analyzeImage(base64);
       
       currentCase.images.push({
         url: base64,
-        quality: analysis.quality,
+        quality: 'good',
         timestamp: new Date().toISOString()
       });
       
-      await this.dermService.updateCase(currentCase);
-      this.addAssistantMessage(analysis.feedback);
-      
-      if (analysis.quality === 'good') {
-        this.askNextQuestion();
-      }
+      this.dermService.updateCase(currentCase);
+      this.addAssistantMessage("Rasm qabul qilindi. Tahlil qilinmoqda...");
+      this.askNextQuestion();
     } catch (err) {
       console.error("Rasm tahlilida xatolik:", err);
-      this.addAssistantMessage("Kechirasiz, rasmni tahlil qilishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.");
+      this.addAssistantMessage("Kechirasiz, rasmni tahlil qilishda xatolik yuz berdi.");
     } finally {
       this.isAnalyzingImage.set(false);
       this.isTyping.set(false);
     }
   }
 
-  async startCamera() {
+  startCamera() {
     this.showCamera.set(true);
   }
 
@@ -163,15 +156,13 @@ export class DermatologyAIComponent {
       });
       if (this.videoElement) {
         this.videoElement.nativeElement.srcObject = stream;
-        // Ensure video starts playing
         this.videoElement.nativeElement.onloadedmetadata = () => {
           this.videoElement.nativeElement.play().catch(e => console.error("Play error:", e));
         };
       }
     } catch (err) {
       console.error("Kameraga ruxsat berilmadi", err);
-      this.cameraError.set("Kameraga ruxsat berilmadi. Iltimos, brauzer sozlamalarini tekshiring.");
-      // Don't close immediately so user can see the error
+      this.cameraError.set("Kameraga ruxsat berilmadi.");
     }
   }
 
@@ -179,7 +170,6 @@ export class DermatologyAIComponent {
     const video = this.videoElement.nativeElement;
     const canvas = this.canvasElement.nativeElement;
     
-    // Use video dimensions for high quality
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
@@ -200,14 +190,14 @@ export class DermatologyAIComponent {
     this.showCamera.set(false);
   }
 
-  async sendMessage() {
+  sendMessage() {
     const text = this.userInput().trim();
     if (!text || !this.activeCase()) return;
     
     const currentCase = this.activeCase()!;
     currentCase.chatHistory.push({ role: 'user', text, timestamp: new Date().toISOString() });
     this.userInput.set('');
-    await this.dermService.updateCase(currentCase);
+    this.dermService.updateCase(currentCase);
     
     this.askNextQuestion();
   }
@@ -237,30 +227,29 @@ export class DermatologyAIComponent {
     try {
       const result = await this.dermService.generateDiagnosis(currentCase);
       currentCase.diagnosis = result;
-      currentCase.treatmentPlan = result.treatmentPlan;
-      currentCase.status = result.urgency === 'emergency' ? 'urgent' : 'completed';
-      await this.dermService.updateCase(currentCase);
+      currentCase.status = 'completed';
+      this.dermService.updateCase(currentCase);
       this.view.set('detail');
     } catch {
-      this.addAssistantMessage("Tahlil qilishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.");
+      this.addAssistantMessage("Tahlil qilishda xatolik yuz berdi.");
     } finally {
       this.isTyping.set(false);
     }
   }
 
-  async addAssistantMessage(text: string) {
+  addAssistantMessage(text: string) {
     const currentCase = this.activeCase();
     if (currentCase) {
       currentCase.chatHistory.push({ role: 'assistant', text, timestamp: new Date().toISOString() });
-      await this.dermService.updateCase(currentCase);
+      this.dermService.updateCase(currentCase);
     }
   }
 
-  async setBodyLocation(loc: string) {
+  setBodyLocation(loc: string) {
     const currentCase = this.activeCase();
     if (currentCase) {
       currentCase.bodyLocation = loc;
-      await this.dermService.updateCase(currentCase);
+      this.dermService.updateCase(currentCase);
       this.askNextQuestion();
     }
   }
@@ -274,24 +263,20 @@ export class DermatologyAIComponent {
     }
   }
 
-  // Adherence logic
-  async markMedicationDone(medIndex: number) {
+  markMedicationDone(medIndex: number) {
     const currentCase = this.activeCase();
     if (!currentCase || !currentCase.treatmentPlan) return;
     
-    // In a real app, this would open a camera/upload for proof
-    const proofUrl = 'https://picsum.photos/seed/proof/200/200';
     currentCase.treatmentPlan.medications[medIndex].adherenceProofs.push({
       timestamp: new Date().toISOString(),
-      imageUrl: proofUrl,
+      imageUrl: 'https://picsum.photos/seed/proof/200/200',
       note: 'Dori qabul qilindi'
     });
     
-    await this.dermService.updateCase(currentCase);
+    this.dermService.updateCase(currentCase);
   }
 
-  // Monitoring
-  async addMonitoringLog(itching: number, pain: number, note: string) {
+  addMonitoringLog(itching: number, pain: number, note: string) {
     const currentCase = this.activeCase();
     if (!currentCase) return;
     
@@ -301,7 +286,7 @@ export class DermatologyAIComponent {
       note
     });
     
-    await this.dermService.updateCase(currentCase);
+    this.dermService.updateCase(currentCase);
     this.view.set('detail');
   }
 }

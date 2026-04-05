@@ -1,8 +1,7 @@
 import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { createClient, SupabaseClient, User, AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { CaseData } from './ai';
-import { DermatologyCase } from '../models/dermatology';
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +20,7 @@ export class SupabaseService {
 
     try {
       if (this.isConfigured()) {
-        this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+        this.supabase.auth.onAuthStateChange((event, session) => {
           this.user.set(session?.user ?? null);
         });
       } else {
@@ -37,11 +36,7 @@ export class SupabaseService {
   }
 
   public isConfigured(): boolean {
-    try {
-      return !!(typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && SUPABASE_URL.startsWith('http'));
-    } catch {
-      return false;
-    }
+    return !!(typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && SUPABASE_URL.startsWith('http'));
   }
 
   private get isDemoMode(): boolean {
@@ -55,9 +50,7 @@ export class SupabaseService {
         // but we'll handle demo mode logic in methods
         return {} as unknown as SupabaseClient;
       }
-      const url = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
-      const key = typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '';
-      this._supabase = createClient(url, key);
+      this._supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
     return this._supabase;
   }
@@ -224,70 +217,6 @@ export class SupabaseService {
       .select()
       .single();
     return { data, error };
-  }
-
-  async getDermatologyCases() {
-    if (this.isDemoMode) {
-      if (!this.isBrowser()) return { data: [], error: null };
-      const cases = JSON.parse(localStorage.getItem('dermatologyCases') || '[]');
-      return { data: cases as DermatologyCase[], error: null };
-    }
-    const { data, error } = await this.supabase
-      .from('dermatology_cases')
-      .select('*')
-      .order('created_at', { ascending: false });
-    return { data: data as DermatologyCase[], error };
-  }
-
-  async createDermatologyCase(caseData: Partial<DermatologyCase>) {
-    if (this.isDemoMode) {
-      if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
-      const cases = JSON.parse(localStorage.getItem('dermatologyCases') || '[]');
-      const newCase = { ...caseData, user_id: this.user()?.id || 'demo-user' };
-      cases.push(newCase);
-      localStorage.setItem('dermatologyCases', JSON.stringify(cases));
-      return { data: newCase as DermatologyCase, error: null };
-    }
-    const { data, error } = await this.supabase
-      .from('dermatology_cases')
-      .insert([{ ...caseData, user_id: this.user()?.id }])
-      .select()
-      .single();
-    return { data: data as DermatologyCase, error };
-  }
-
-  async updateDermatologyCase(id: string, caseData: Partial<DermatologyCase>) {
-    if (this.isDemoMode) {
-      if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
-      const cases = JSON.parse(localStorage.getItem('dermatologyCases') || '[]');
-      const index = cases.findIndex((c: DermatologyCase) => c.id === id);
-      if (index === -1) return { data: null, error: { message: 'Not found' } };
-      cases[index] = { ...cases[index], ...caseData };
-      localStorage.setItem('dermatologyCases', JSON.stringify(cases));
-      return { data: cases[index] as DermatologyCase, error: null };
-    }
-    const { data, error } = await this.supabase
-      .from('dermatology_cases')
-      .update(caseData)
-      .eq('id', id)
-      .select()
-      .single();
-    return { data: data as DermatologyCase, error };
-  }
-
-  async deleteDermatologyCase(id: string) {
-    if (this.isDemoMode) {
-      if (!this.isBrowser()) return { error: { message: 'Browser only' } };
-      const cases = JSON.parse(localStorage.getItem('dermatologyCases') || '[]');
-      const filteredCases = cases.filter((c: DermatologyCase) => c.id !== id);
-      localStorage.setItem('dermatologyCases', JSON.stringify(filteredCases));
-      return { error: null };
-    }
-    const { error } = await this.supabase
-      .from('dermatology_cases')
-      .delete()
-      .eq('id', id);
-    return { error };
   }
 
   async deleteCase(id: string) {

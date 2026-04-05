@@ -1,6 +1,6 @@
 {
-  "name": "Abdulloh AI",
-  "description": "Professional medical AI system for clinical decision support, dermatology analysis, and patient monitoring.",
+  "name": "My App",
+  "description": "A brief description of what the app does",
   "requestFramePermissions": [
     "camera",
     "microphone"

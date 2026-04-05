@@ -161,12 +161,11 @@ export class AiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    const key = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : '';
-    this.ai = new GoogleGenAI({ apiKey: key });
+    this.ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   }
 
   async analyzeCase(caseData: CaseData, mode: 'patient' | 'doctor', locale: 'uz' | 'ru' | 'en' = 'uz'): Promise<AnalysisResult> {
-    if (typeof GEMINI_API_KEY === 'undefined' || !GEMINI_API_KEY) {
+    if (!GEMINI_API_KEY) {
       throw new Error('Gemini API kaliti topilmadi. Iltimos, sozlamalarni tekshiring.');
     }
 
