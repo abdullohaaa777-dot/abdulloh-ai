@@ -30,7 +30,7 @@ const angularApp = new AngularNodeAppEngine();
 app.use(
   express.static(browserDistFolder, {
     maxAge: '1y',
-    index: false,
+    index: 'index.html',
     redirect: false,
   }),
 );
@@ -47,8 +47,8 @@ app.use((req, res, next) => {
         console.log(`[Server] Response status: ${response.status}`);
         return writeResponseToNodeResponse(response, res);
       } else {
-        console.log(`[Server] No response from Angular app`);
-        return next();
+        console.log(`[Server] No response from Angular app, falling back to index.html`);
+        return res.sendFile(join(browserDistFolder, 'index.html'));
       }
     })
     .catch((err) => {
