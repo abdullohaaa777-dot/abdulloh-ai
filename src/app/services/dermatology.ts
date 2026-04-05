@@ -8,7 +8,7 @@ import { DermatologyCase, DermatologyDiagnosisResult } from '../models/dermatolo
 })
 export class DermatologyService {
   private supabase = inject(SupabaseService);
-  private ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  private ai = new GoogleGenAI({ apiKey: typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : '' });
   
   cases = signal<DermatologyCase[]>([]);
   

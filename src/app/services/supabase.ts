@@ -1,6 +1,6 @@
 import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { CaseData } from './ai';
 import { DermatologyCase } from '../models/dermatology';
 
@@ -21,7 +21,7 @@ export class SupabaseService {
 
     try {
       if (this.isConfigured()) {
-        this.supabase.auth.onAuthStateChange((event, session) => {
+        this.supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
           this.user.set(session?.user ?? null);
         });
       } else {
@@ -37,7 +37,11 @@ export class SupabaseService {
   }
 
   public isConfigured(): boolean {
-    return !!(typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && SUPABASE_URL.startsWith('http'));
+    try {
+      return !!(typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && SUPABASE_URL.startsWith('http'));
+    } catch {
+      return false;
+    }
   }
 
   private get isDemoMode(): boolean {
@@ -51,7 +55,9 @@ export class SupabaseService {
         // but we'll handle demo mode logic in methods
         return {} as unknown as SupabaseClient;
       }
-      this._supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const url = typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '';
+      const key = typeof SUPABASE_ANON_KEY !== 'undefined' ? SUPABASE_ANON_KEY : '';
+      this._supabase = createClient(url, key);
     }
     return this._supabase;
   }
