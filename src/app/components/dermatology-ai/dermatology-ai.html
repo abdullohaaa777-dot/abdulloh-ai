@@ -1,0 +1,476 @@
+<div class="max-w-6xl mx-auto p-4 md:p-8">
+  <!-- Hidden File Input (Global) -->
+  <input type="file" #fileInput (change)="handleFileUpload($event)" hidden accept="image/*,.pdf,.doc,.docx">
+
+  <!-- Header -->
+  <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 bg-medical-primary rounded-2xl flex items-center justify-center shadow-lg shadow-medical-primary/20">
+        <mat-icon class="text-white">health_and_safety</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-medical-text">Dermatologik AI</h1>
+        <p class="text-sm text-medical-text-muted">Teri muammolarini tahlil qilish va davolashni nazorat qilish tizimi</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <button (click)="view.set('list')" class="btn-secondary">
+        <mat-icon>list</mat-icon>
+        Mavjud holatlar
+      </button>
+      <button (click)="createNewCase()" class="btn-primary">
+        <mat-icon>add_circle</mat-icon>
+        Yangi tahlil
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View -->
+  @switch (view()) {
+    
+    <!-- Case List -->
+    @case ('list') {
+      <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-medical-border shadow-sm">
+          <div class="relative flex-1 w-full">
+            <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-medical-text-muted">search</mat-icon>
+            <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" 
+                   placeholder="Tashxis yoki ID bo'yicha qidirish..." class="input-field w-full pl-10">
+          </div>
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)" class="input-field w-full">
+              <option value="all">Barcha holatlar</option>
+              <option value="active">Aktiv</option>
+              <option value="completed">Tugallangan</option>
+              <option value="urgent">Shoshilinch</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          @for (c of filteredCases(); track c.id) {
+            <div (click)="selectCase(c)" (keydown.enter)="selectCase(c)" tabindex="0"
+                 class="card-vibrant p-6 cursor-pointer group hover:scale-[1.02] transition-all">
+              <div class="flex justify-between items-start mb-4">
+                <div class="w-12 h-12 rounded-xl overflow-hidden border border-medical-border bg-slate-50">
+                  @if (c.images.length) {
+                    <img [src]="c.images[0].url" alt="Case image" class="w-full h-full object-cover">
+                  } @else {
+                    <mat-icon class="m-auto text-medical-text-muted">image</mat-icon>
+                  }
+                </div>
+                <span [class]="'px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ' + getUrgencyColor(c.diagnosis?.urgency)">
+                  {{ c.status }}
+                </span>
+              </div>
+              
+              <h3 class="font-bold text-medical-text mb-1">{{ c.diagnosis?.main || 'Yangi holat' }}</h3>
+              <p class="text-xs text-medical-text-muted mb-4">ID: {{ c.id.slice(0, 8) }} • {{ c.createdAt | date:'short' }}</p>
+              
+              <div class="flex items-center gap-2 text-xs font-medium text-medical-primary">
+                <mat-icon class="text-sm">chevron_right</mat-icon>
+                Batafsil ko'rish
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (filteredCases().length === 0) {
+          <div class="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-medical-border">
+            <mat-icon class="text-6xl text-medical-text-muted mb-4 opacity-20">history</mat-icon>
+            <p class="text-medical-text-muted">Hozircha hech qanday dermatologik holat topilmadi.</p>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Chat/Analysis View -->
+    @case ('chat') {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[70vh]">
+        <!-- Chat Window -->
+        <div class="lg:col-span-2 flex flex-col bg-white rounded-3xl border border-medical-border shadow-xl overflow-hidden">
+          <div class="p-4 border-b border-medical-border bg-slate-50 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 bg-medical-primary rounded-lg flex items-center justify-center">
+                <mat-icon class="text-white text-sm">smart_toy</mat-icon>
+              </div>
+              <span class="font-bold text-medical-text">Dermatologik AI Chatbot</span>
+            </div>
+            <div class="flex items-center gap-2">
+              @if (isTyping()) {
+                <span class="text-xs text-medical-primary animate-pulse font-medium">
+                  {{ isAnalyzingImage() ? 'Rasm tahlil qilinmoqda...' : 'AI yozmoqda...' }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar" #chatContainer>
+            @if (!activeCase()?.chatHistory?.length && !activeCase()?.images?.length) {
+              <div class="flex flex-col items-center justify-center h-full text-center p-8 space-y-6">
+                <div class="w-20 h-20 bg-medical-primary/10 rounded-full flex items-center justify-center">
+                  <mat-icon class="text-4xl text-medical-primary">add_a_photo</mat-icon>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-medical-text">Tahlilni boshlash uchun rasm yuklang</h3>
+                  <p class="text-sm text-medical-text-muted max-w-xs mx-auto">Teri muammosi bor joyni aniq rasmga oling yoki mavjud rasmni yuklang.</p>
+                </div>
+                <div class="flex flex-col w-full gap-3">
+                  <button (click)="startCamera()" class="btn-primary w-full py-4 rounded-2xl shadow-lg shadow-medical-primary/20">
+                    <mat-icon>photo_camera</mat-icon>
+                    Rasmga olish
+                  </button>
+                  <button (click)="triggerFileUpload()" class="btn-secondary w-full py-4 rounded-2xl">
+                    <mat-icon>upload_file</mat-icon>
+                    Rasm yuklash
+                  </button>
+                </div>
+              </div>
+            }
+            @for (msg of activeCase()?.chatHistory; track msg.timestamp) {
+              <div [class]="'flex ' + (msg.role === 'user' ? 'justify-end' : 'justify-start')">
+                <div [class]="'max-w-[80%] p-4 rounded-2xl shadow-sm ' + 
+                             (msg.role === 'user' ? 'bg-medical-primary text-white rounded-tr-none' : 'bg-slate-100 text-medical-text rounded-tl-none')">
+                  <p class="text-sm leading-relaxed">{{ msg.text }}</p>
+                  <span class="text-[10px] opacity-50 mt-1 block">{{ msg.timestamp | date:'HH:mm' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="p-4 border-t border-medical-border bg-slate-50 space-y-4">
+            <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              <button (click)="triggerFileUpload()" class="btn-secondary !py-1 !px-3 !text-xs whitespace-nowrap">
+                <mat-icon class="!text-sm">attach_file</mat-icon>
+                Fayl yuklash
+              </button>
+              <button (click)="startCamera()" class="btn-secondary !py-1 !px-3 !text-xs whitespace-nowrap">
+                <mat-icon class="!text-sm">photo_camera</mat-icon>
+                Kamera
+              </button>
+            </div>
+
+            <div class="flex gap-2">
+              <input type="text" [ngModel]="userInput()" (ngModelChange)="userInput.set($event)" 
+                     (keyup.enter)="sendMessage()"
+                     placeholder="Javobingizni yozing..." class="input-field flex-1">
+              <button (click)="sendMessage()" class="btn-primary !p-3">
+                <mat-icon>send</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Side Panel (Uploads & Info) -->
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl border border-medical-border shadow-sm">
+            <h3 class="font-bold text-medical-text mb-4 flex items-center gap-2">
+              <mat-icon class="text-medical-primary">image</mat-icon>
+              Yuklangan rasmlar
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+              @for (img of activeCase()?.images; track img.timestamp) {
+                <div class="relative group aspect-square rounded-xl overflow-hidden border border-medical-border">
+                  <img [src]="img.url" alt="Dermatology photo" class="w-full h-full object-cover">
+                  <div [class]="'absolute top-1 right-1 px-1 rounded text-[8px] font-bold uppercase ' + (img.quality === 'good' ? 'bg-green-500 text-white' : 'bg-red-500 text-white')">
+                    {{ img.quality }}
+                  </div>
+                </div>
+              }
+              @if (!activeCase()?.images?.length) {
+                <div (click)="triggerFileUpload()" 
+                     (keydown.enter)="triggerFileUpload()"
+                     tabindex="0"
+                     role="button"
+                     aria-label="Rasm yuklash"
+                     class="col-span-2 py-8 text-center border-2 border-dashed border-medical-border rounded-xl cursor-pointer hover:bg-slate-50 transition-all focus:outline-none focus:ring-2 focus:ring-medical-primary">
+                  <mat-icon class="text-medical-text-muted opacity-20">add_a_photo</mat-icon>
+                  <p class="text-[10px] text-medical-text-muted mt-1">Rasm yuklash uchun bosing</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl border border-medical-border shadow-sm">
+            <h3 class="font-bold text-medical-text mb-4 flex items-center gap-2">
+              <mat-icon class="text-medical-primary">location_on</mat-icon>
+              Anatomik joylashuv
+            </h3>
+            <div class="grid grid-cols-2 gap-2">
+              @for (loc of ['Bosh', 'Yuz', 'Bo\'yin', 'Ko\'krak', 'Qorin', 'Orqa', 'Qo\'l', 'Oyoq', 'Tirnoq', 'Sochli qism']; track loc) {
+                <button (click)="setBodyLocation(loc)"
+                        [class]="'text-[10px] p-2 rounded-lg border transition-all ' + (activeCase()?.bodyLocation === loc ? 'bg-medical-primary text-white border-medical-primary' : 'bg-slate-50 text-medical-text border-medical-border hover:bg-slate-100')">
+                  {{ loc }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Case Detail / Diagnosis View -->
+    @case ('detail') {
+      <div class="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Left: Diagnosis & Differentials -->
+          <div class="lg:col-span-2 space-y-8">
+            <!-- Main Diagnosis Card -->
+            <div class="bg-white rounded-3xl border border-medical-border shadow-xl overflow-hidden">
+              <div [class]="'p-6 flex items-center justify-between ' + getUrgencyColor(activeCase()?.diagnosis?.urgency)">
+                <div class="flex items-center gap-4">
+                  <mat-icon class="text-3xl">verified</mat-icon>
+                  <div>
+                    <h2 class="text-2xl font-bold">{{ activeCase()?.diagnosis?.main }}</h2>
+                    <p class="text-sm opacity-80">Ehtimollik: {{ activeCase()?.diagnosis?.mainProbability }}%</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="text-[10px] font-bold uppercase tracking-widest block opacity-60">Holat</span>
+                  <span class="font-bold">{{ activeCase()?.diagnosis?.urgency | uppercase }}</span>
+                </div>
+              </div>
+              
+              <div class="p-8 space-y-6">
+                <div>
+                  <h4 class="font-bold text-medical-text mb-2">Kasallik haqida:</h4>
+                  <p class="text-medical-text-muted leading-relaxed">{{ activeCase()?.diagnosis?.description }}</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="bg-green-50 p-4 rounded-2xl border border-green-100">
+                    <h5 class="font-bold text-green-800 text-sm mb-2 flex items-center gap-2">
+                      <mat-icon class="text-sm">check_circle</mat-icon>
+                      Tasdiqlovchi belgilar
+                    </h5>
+                    <ul class="text-xs text-green-700 space-y-1">
+                      @for (sign of activeCase()?.diagnosis?.supportingSigns; track sign) {
+                        <li>• {{ sign }}</li>
+                      }
+                    </ul>
+                  </div>
+                  <div class="bg-red-50 p-4 rounded-2xl border border-red-100">
+                    <h5 class="font-bold text-red-800 text-sm mb-2 flex items-center gap-2">
+                      <mat-icon class="text-sm">cancel</mat-icon>
+                      Inkor etuvchi belgilar
+                    </h5>
+                    <ul class="text-xs text-red-700 space-y-1">
+                      @for (sign of activeCase()?.diagnosis?.opposingSigns; track sign) {
+                        <li>• {{ sign }}</li>
+                      }
+                    </ul>
+                  </div>
+                </div>
+
+                @if (activeCase()?.diagnosis?.redFlags?.length) {
+                  <div class="bg-red-600 p-4 rounded-2xl text-white">
+                    <h5 class="font-bold text-sm mb-2 flex items-center gap-2">
+                      <mat-icon>warning</mat-icon>
+                      XAVF BELGILARI (RED FLAGS)
+                    </h5>
+                    <ul class="text-xs space-y-1 opacity-90">
+                      @for (flag of activeCase()?.diagnosis?.redFlags; track flag) {
+                        <li>• {{ flag }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Differentials -->
+            <div class="bg-white p-8 rounded-3xl border border-medical-border shadow-sm">
+              <h3 class="text-xl font-bold text-medical-text mb-6">Differensial tashxislar</h3>
+              <div class="space-y-4">
+                @for (diff of activeCase()?.diagnosis?.differentials; track diff.name) {
+                  <div class="relative h-12 bg-slate-50 rounded-xl overflow-hidden border border-medical-border">
+                    <div class="absolute inset-y-0 left-0 bg-medical-primary/10 transition-all duration-1000" [style.width.%]="diff.probability"></div>
+                    <div class="absolute inset-0 flex items-center justify-between px-4">
+                      <span class="font-medium text-medical-text">{{ diff.name }}</span>
+                      <span class="font-bold text-medical-primary">{{ diff.probability }}%</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Treatment Plan -->
+            <div class="bg-white p-8 rounded-3xl border border-medical-border shadow-sm">
+              <h3 class="text-xl font-bold text-medical-text mb-6 flex items-center gap-3">
+                <mat-icon class="text-medical-primary">medication</mat-icon>
+                Davolash rejasi
+              </h3>
+              
+              <div class="space-y-6">
+                @for (med of activeCase()?.treatmentPlan?.medications; track med.name; let i = $index) {
+                  <div class="p-6 rounded-2xl border border-medical-border bg-slate-50 hover:border-medical-primary transition-all">
+                    <div class="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 class="font-bold text-medical-text text-lg">{{ med.name }}</h4>
+                        <p class="text-xs text-medical-primary font-medium">{{ med.form | uppercase }} • {{ med.dosage }}</p>
+                      </div>
+                      <button (click)="markMedicationDone(i)" class="btn-primary !py-1 !px-3 !text-xs">
+                        <mat-icon class="!text-sm">check</mat-icon>
+                        Bajarildi
+                      </button>
+                    </div>
+                    <p class="text-sm text-medical-text-muted mb-4">{{ med.instruction }}</p>
+                    <div class="flex items-center gap-4 text-[10px] font-bold text-medical-text-muted uppercase tracking-wider">
+                      <span class="flex items-center gap-1"><mat-icon class="!text-xs">schedule</mat-icon> {{ med.frequency }}</span>
+                      <span class="flex items-center gap-1"><mat-icon class="!text-xs">calendar_today</mat-icon> {{ med.duration }}</span>
+                    </div>
+
+                    <!-- Adherence Proofs -->
+                    @if (med.adherenceProofs.length) {
+                      <div class="mt-4 pt-4 border-t border-medical-border flex gap-2 overflow-x-auto pb-2">
+                        @for (proof of med.adherenceProofs; track proof.timestamp) {
+                          <div class="w-10 h-10 rounded-lg overflow-hidden border border-medical-border flex-shrink-0">
+                            <img [src]="proof.imageUrl" alt="Adherence proof" class="w-full h-full object-cover">
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Monitoring & Doctor Notes -->
+          <div class="space-y-8">
+            <div class="bg-white p-6 rounded-3xl border border-medical-border shadow-sm">
+              <h3 class="font-bold text-medical-text mb-4 flex items-center gap-2">
+                <mat-icon class="text-medical-primary">insights</mat-icon>
+                Monitoring
+              </h3>
+              <div class="space-y-4">
+                @for (log of activeCase()?.monitoringLogs; track log.timestamp) {
+                  <div class="p-4 rounded-xl border border-medical-border bg-slate-50">
+                    <div class="flex justify-between items-center mb-2">
+                      <span class="text-[10px] font-bold text-medical-text-muted">{{ log.timestamp | date:'short' }}</span>
+                      <span [class]="'px-2 py-0.5 rounded text-[8px] font-bold uppercase ' + 
+                                    (log.symptoms.spread === 'improving' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')">
+                        {{ log.symptoms.spread }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-medical-text">{{ log.note }}</p>
+                  </div>
+                }
+                <button (click)="view.set('monitoring')" class="btn-secondary w-full">
+                  <mat-icon>add</mat-icon>
+                  Monitoring qo'shish
+                </button>
+              </div>
+            </div>
+
+            @if (activeCase()?.role === 'doctor') {
+              <div class="bg-white p-6 rounded-3xl border border-medical-border shadow-sm">
+                <h3 class="font-bold text-medical-text mb-4 flex items-center gap-2">
+                  <mat-icon class="text-medical-primary">clinical_notes</mat-icon>
+                  Klinik asos (Shifokor uchun)
+                </h3>
+                <div class="space-y-4 text-xs leading-relaxed text-medical-text-muted">
+                  <div>
+                    <p class="font-bold text-medical-text mb-1">Patogenez:</p>
+                    <p>{{ activeCase()?.diagnosis?.pathogenesis }}</p>
+                  </div>
+                  <div>
+                    <p class="font-bold text-medical-text mb-1">Molekulyar mexanizm:</p>
+                    <p>{{ activeCase()?.diagnosis?.molecularMechanism }}</p>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Monitoring Form View -->
+    @case ('monitoring') {
+      <div class="max-w-2xl mx-auto bg-white p-8 rounded-3xl border border-medical-border shadow-xl">
+        <h3 class="text-xl font-bold text-medical-text mb-8">Monitoring holatini kiritish</h3>
+        
+        <div class="space-y-6">
+          <div>
+            <label for="itchingRange" class="block text-sm font-bold text-medical-text mb-2">Qichishish darajasi (0-10)</label>
+            <input id="itchingRange" type="range" min="0" max="10" #itching class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-medical-primary">
+            <div class="flex justify-between text-[10px] text-medical-text-muted mt-1">
+              <span>Yo'q</span>
+              <span>O'rtacha</span>
+              <span>Chidab bo'lmas</span>
+            </div>
+          </div>
+
+          <div>
+            <label for="painRange" class="block text-sm font-bold text-medical-text mb-2">Og'riq darajasi (0-10)</label>
+            <input id="painRange" type="range" min="0" max="10" #pain class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-medical-primary">
+          </div>
+
+          <div>
+            <span class="block text-sm font-bold text-medical-text mb-2">O'zgarish yo'nalishi</span>
+            <div class="grid grid-cols-3 gap-3">
+              <button (click)="selectedSpread.set('improving')" 
+                      [class]="'p-3 rounded-xl border text-xs font-medium transition-all ' + (selectedSpread() === 'improving' ? 'bg-medical-primary text-white border-medical-primary' : 'border-medical-border hover:bg-slate-50')">
+                Yaxshilanish
+              </button>
+              <button (click)="selectedSpread.set('stable')" 
+                      [class]="'p-3 rounded-xl border text-xs font-medium transition-all ' + (selectedSpread() === 'stable' ? 'bg-medical-primary text-white border-medical-primary' : 'border-medical-border hover:bg-slate-50')">
+                O'zgarishsiz
+              </button>
+              <button (click)="selectedSpread.set('worsening')" 
+                      [class]="'p-3 rounded-xl border text-xs font-medium transition-all ' + (selectedSpread() === 'worsening' ? 'bg-medical-primary text-white border-medical-primary' : 'border-medical-border hover:bg-slate-50')">
+                Yomonlashish
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label for="noteArea" class="block text-sm font-bold text-medical-text mb-2">Izoh</label>
+            <textarea id="noteArea" #note placeholder="Holatingiz haqida qo'shimcha ma'lumot yozing..." class="input-field w-full h-32 resize-none"></textarea>
+          </div>
+
+          <div class="flex gap-4 pt-4">
+            <button (click)="view.set('detail')" class="btn-secondary flex-1">Bekor qilish</button>
+            <button (click)="addMonitoringLog(+itching.value, +pain.value, note.value)" class="btn-primary flex-1">Saqlash</button>
+          </div>
+        </div>
+      </div>
+    }
+
+  }
+</div>
+
+<!-- Camera Modal -->
+@if (showCamera()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+    <div class="relative w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl">
+      
+      @if (cameraError()) {
+        <div class="p-8 text-center space-y-4">
+          <mat-icon class="text-6xl text-red-500">videocam_off</mat-icon>
+          <p class="text-medical-text font-medium">{{ cameraError() }}</p>
+          <button (click)="stopCamera()" class="btn-primary w-full">Yopish</button>
+        </div>
+      } @else {
+        <video #video autoplay playsinline muted class="w-full aspect-square object-cover bg-black"></video>
+        <canvas #canvas hidden></canvas>
+        
+        <div class="absolute top-4 right-4">
+          <button (click)="stopCamera()" class="w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-all">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <div class="absolute bottom-0 inset-x-0 p-8 flex items-center justify-center bg-gradient-to-t from-black/60 to-transparent">
+          <button (click)="capturePhoto()" class="w-20 h-20 rounded-full bg-white border-8 border-white/30 flex items-center justify-center shadow-2xl active:scale-90 transition-all">
+            <div class="w-14 h-14 rounded-full bg-medical-primary flex items-center justify-center">
+              <mat-icon class="text-white text-3xl">photo_camera</mat-icon>
+            </div>
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

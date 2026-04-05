@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Abdulloh AI",
+  "description": "Clinical decision support system with Patient and Doctor modes, featuring AI-powered analysis and risk calculation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
