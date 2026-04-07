@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, inject, effect, PLATFORM_ID} from '@
 import {isPlatformBrowser} from '@angular/common';
 import {RouterOutlet, Router} from '@angular/router';
 import {SupabaseService} from './services/supabase';
+import {injectSpeedInsights} from '@vercel/speed-insights';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -16,6 +17,11 @@ export class App {
   private platformId = inject(PLATFORM_ID);
 
   constructor() {
+    // Initialize Vercel Speed Insights only in browser context
+    if (isPlatformBrowser(this.platformId)) {
+      injectSpeedInsights();
+    }
+
     effect(() => {
       if (!isPlatformBrowser(this.platformId)) return;
 
