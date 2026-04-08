@@ -23,54 +23,54 @@ import { Router, RouterModule } from '@angular/router';
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto pr-2 custom-scrollbar">
-          <a routerLink="/app/dashboard" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20" 
+          <a routerLink="/dashboard" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20" 
              [routerLinkActiveOptions]="{exact: true}"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>dashboard</mat-icon>
             <span class="font-medium">Dashboard</span>
           </a>
-          <a routerLink="/app/digital-twin" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/digital-twin" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>person_pin</mat-icon>
             <span class="font-medium">Digital Twin</span>
           </a>
-          <a routerLink="/app/dermatology-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/dermatology-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>health_and_safety</mat-icon>
             <span class="font-medium">Dermatologik AI</span>
           </a>
-          <a routerLink="/app/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
             <span class="font-medium">Monitoring</span>
           </a>
-          <a routerLink="/app/cystic-fibrosis" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/cystic-fibrosis" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>medical_services</mat-icon>
             <span class="font-medium">Mukovitsidoz</span>
           </a>
-          <a routerLink="/app/adherence" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/adherence" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>fact_check</mat-icon>
             <span class="font-medium">Adherence</span>
           </a>
-          <a routerLink="/app/simulator" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/simulator" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>model_training</mat-icon>
             <span class="font-medium">Simulator</span>
           </a>
-          <a routerLink="/app/telemedicine" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/telemedicine" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>chat</mat-icon>
             <span class="font-medium">Telemeditsina</span>
           </a>
-          <a routerLink="/app/analytics" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/analytics" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>analytics</mat-icon>
             <span class="font-medium">Analytics</span>
           </a>
           <div class="pt-4 pb-2 px-3 text-[10px] font-bold text-medical-text-muted uppercase tracking-widest">Amallar</div>
-          <a routerLink="/app/new-case" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a routerLink="/new-case" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>add_circle</mat-icon>
             <span class="font-medium">Yangi holat</span>
@@ -114,6 +114,6 @@ export class DashboardComponent implements OnInit {
 
   async logout() {
     await this.supabase.signOut();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/auth']);
   }
 }

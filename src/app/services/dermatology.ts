@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { GoogleGenAI } from "@google/genai";
 
 export interface DermatologyCase {
   id: string;
@@ -104,8 +105,19 @@ export interface DermatologyDiagnosisResult {
   providedIn: 'root'
 })
 export class DermatologyService {
+  private ai: GoogleGenAI | null = (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY)
+    ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    : null;
+  
   cases = signal<DermatologyCase[]>([]);
+  
 
+  private ensureAiClient(): GoogleGenAI {
+    if (!this.ai) {
+      throw new Error('Dermatology AI sozlanmagan: GEMINI_API_KEY topilmadi.');
+    }
+    return this.ai;
+  }
   constructor() {
     this.init();
   }
@@ -164,15 +176,26 @@ export class DermatologyService {
     const model = "gemini-3-flash-preview";
     const prompt = "Ushbu teri muammosi tasvirlangan rasmda nimalarni ko'ryapsiz? Faqat klinik belgilarni ayting.";
     
+    let aiClient: GoogleGenAI;
     try {
-      const response = await fetch('/api/ai/dermatology/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt, base64 })
+      aiClient = this.ensureAiClient();
+    } catch (error) {
+      console.error(error);
+      return "AI xizmati vaqtincha sozlanmagan (GEMINI_API_KEY yo'q).";
+    }
+
+    try {
+      const response = await aiClient.models.generateContent({
+        model,
+        contents: [{
+          role: 'user',
+          parts: [
+            { inlineData: { data: base64.split(',')[1], mimeType: 'image/jpeg' } },
+            { text: prompt }
+          ]
+        }]
       });
-      if (!response.ok) throw new Error(`Dermatology image endpoint failed: ${response.status}`);
-      const payload = await response.json() as { text?: string };
-      return payload.text || '';
+      return response.text || '';
     } catch (error) {
       console.error('AI Analysis error:', error);
       return 'Rasm tahlilida xatolik yuz berdi.';
@@ -192,14 +215,13 @@ export class DermatologyService {
     Faqat bitta savol bering. Agar barcha kerakli ma'lumotlar yig'ilgan bo'lsa, "DIAGNOSIS_READY" deb javob bering.`;
 
     try {
-      const response = await fetch('/api/ai/dermatology/next-question', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt })
+      const aiClient = this.ensureAiClient();
+      const response = await aiClient.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
       });
-      if (!response.ok) throw new Error(`Dermatology question endpoint failed: ${response.status}`);
-      const payload = await response.json() as { text?: string };
-      return (payload.text || '').trim() || "Savol generatsiya qilinmadi. Iltimos, qayta urinib ko'ring.";
+      
+      return (response.text || '').trim() || "Savol generatsiya qilinmadi. Iltimos, qayta urinib ko'ring.";
     } catch (error) {
       console.error('Dermatology question generation error:', error);
       return "AI savol yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.";
@@ -218,14 +240,14 @@ export class DermatologyService {
     Natija JSON formatida bo'lsin.`;
 
     try {
-      const response = await fetch('/api/ai/dermatology/diagnosis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, prompt })
+      const aiClient = this.ensureAiClient();
+      const response = await aiClient.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { responseMimeType: 'application/json' }
       });
-      if (!response.ok) throw new Error(`Dermatology diagnosis endpoint failed: ${response.status}`);
-      const payload = await response.json() as { text?: string };
-      return JSON.parse(payload.text || '{}');
+
+      return JSON.parse(response.text || '{}');
     } catch (error) {
       console.error('Dermatology diagnosis generation error:', error);
       throw new Error('Dermatology AI tashxisini yaratishda xatolik yuz berdi.');

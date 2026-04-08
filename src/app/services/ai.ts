@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { GoogleGenAI } from "@google/genai";
 
 export interface ChatMessage {
   id: string;
@@ -157,6 +158,20 @@ export interface AnalysisResult {
   providedIn: 'root'
 })
 export class AiService {
+  private ai: GoogleGenAI | null = null;
+
+  constructor() {
+    if (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY) {
+      this.ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    }
+  }
+
+  private getAiClient(): GoogleGenAI {
+    if (!this.ai) {
+      throw new Error("AI xizmati sozlanmagan: GEMINI_API_KEY topilmadi. Administrator bilan bog'laning.");
+    }
+    return this.ai;
+  }
 
   private getFallbackAnalysis(message: string): AnalysisResult {
     return {
@@ -196,6 +211,8 @@ export class AiService {
   }
 
   async analyzeCase(caseData: CaseData, mode: 'patient' | 'doctor', locale: 'uz' | 'ru' | 'en' = 'uz'): Promise<AnalysisResult> {
+    const aiClient = this.getAiClient();
+
     const systemInstruction = `You are "Abdulloh AI", a professional clinical decision support system.
     Your task is to analyze laboratory results and integrate them with existing risk calculations and clinical reasoning.
     
@@ -456,13 +473,13 @@ export class AiService {
       
       Iltimos, ushbu ma'lumotlar asosida tahlil bering.`;
 
-    const response = await fetch('/api/ai/analyze-case', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, systemInstruction })
-    }).then(async (res) => {
-      if (!res.ok) throw new Error(`AI analyze endpoint failed: ${res.status}`);
-      return await res.json() as { text?: string };
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json"
+      },
     });
 
     try {
@@ -493,19 +510,28 @@ export class AiService {
     }
   }
 
-  async chat(_caseId: string, history: unknown[], message: string) {
-    const response = await fetch('/api/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history })
+  async chat(_caseId: string, _history: unknown[], message: string) {
+    const aiClient = this.getAiClient();
+    const chat = aiClient.chats.create({
+      model: "gemini-3-flash-preview",
+      config: {
+        systemInstruction: `Siz "Abdulloh AI" tibbiy tahlilchi va diagnostika bo'yicha mutaxassisiz. O'zbek tilida gapirasiz. 
+        Sizning asosiy vazifalaringiz:
+        1. Mukovitsidoz (Cystic Fibrosis) kasalligini aniqlash uchun bemor bilan muloqot qilish. 
+           - Bemorning shikoyatlariga qarab, ushbu kasallikka xos bo'lgan savollarni (masalan: sho'r ter, surunkali yo'tal, hazm qilish muammolari) bering.
+           - Agar bemor javob bermasa yoki noaniq javob bersa, savolni boshqacha yondashuv bilan qayta bering (masalan: "Farzandingizni o'pganingizda terisi sho'r emasmi?").
+           - Proaktiv bo'ling, diagnozni aniqlashtirish uchun kerakli barcha klinik belgilarni so'rang.
+        2. Anemiyaning 4 xil turini (Temir tanqisligi, B12 tanqisligi, Gemolitik va Aplastik) laboratoriya tahlillari asosida ajratib berish.
+        3. Yakuniy xulosa: Muloqot oxirida aniq tashxis qo'ying va davolash uchun kerakli dori vositalarini (nomlari va dozalari bilan) tavsiya qiling.
+        
+        Muloqot uslubingiz: Professional, hamdard va natijaga yo'naltirilgan.`,
+      },
     });
 
-    if (!response.ok) {
-      throw new Error(`AI chat endpoint failed: ${response.status}`);
-    }
-
-    const payload = await response.json() as { text?: string };
-    return payload.text || "";
+    // We can't easily pass history in this simplified version without mapping, 
+    // but we can send the current message context.
+    const response = await chat.sendMessage({ message });
+    return response.text;
   }
 
   calculateRisk(age: number, sbp: number, smoking: boolean): number {

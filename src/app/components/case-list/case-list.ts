@@ -16,7 +16,7 @@ import { RouterModule } from '@angular/router';
           <h2 class="text-3xl font-extrabold text-medical-text tracking-tight">Bemorlar holatlari</h2>
           <p class="text-medical-text-muted font-medium">Barcha saqlangan tahlillar ro'yxati</p>
         </div>
-        <a routerLink="/app/new-case" class="btn-primary px-6 py-3">
+        <a routerLink="/new-case" class="btn-primary px-6 py-3">
           <mat-icon>add</mat-icon>
           Yangi holat
         </a>
@@ -24,7 +24,7 @@ import { RouterModule } from '@angular/router';
 
       <div class="grid gap-5">
         @for (case of cases(); track case.id) {
-          <a [routerLink]="['/app/case', case.id]" 
+          <a [routerLink]="['/case', case.id]" 
              class="bg-white border border-medical-border p-6 rounded-2xl hover:border-medical-primary hover:shadow-lg hover:shadow-medical-primary/5 transition-all group flex items-center justify-between">
             <div class="flex items-center gap-6">
               <div class="w-14 h-14 rounded-2xl bg-slate-50 border border-medical-border flex items-center justify-center text-medical-text-muted group-hover:bg-medical-primary/10 group-hover:text-medical-primary group-hover:border-medical-primary/20 transition-all">
@@ -62,7 +62,7 @@ import { RouterModule } from '@angular/router';
             </div>
             <h3 class="text-xl font-bold text-medical-text mb-2">Hozircha holatlar mavjud emas</h3>
             <p class="text-medical-text-muted mb-8 max-w-xs mx-auto">Tizimdan foydalanishni boshlash uchun birinchi bemor ma'lumotlarini kiriting</p>
-            <a routerLink="/app/new-case" class="btn-primary inline-flex">Birinchi holatni yarating</a>
+            <a routerLink="/new-case" class="btn-primary inline-flex">Birinchi holatni yarating</a>
           </div>
         }
       </div>

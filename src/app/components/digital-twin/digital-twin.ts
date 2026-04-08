@@ -180,7 +180,7 @@ interface Patient {
                     Hozirgina
                   </td>
                   <td class="py-4 px-8">
-                    <button [routerLink]="['/app/case', patient.id]" class="p-2 hover:bg-medical-primary/10 rounded-xl text-medical-primary transition-all">
+                    <button [routerLink]="['/case', patient.id]" class="p-2 hover:bg-medical-primary/10 rounded-xl text-medical-primary transition-all">
                       <mat-icon>visibility</mat-icon>
                     </button>
                   </td>

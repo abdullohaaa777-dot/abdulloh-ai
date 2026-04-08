@@ -49,14 +49,14 @@ export class DermatologyAIComponent {
     const status = this.statusFilter();
     
     if (query) {
-      list = list.filter((c: DermatologyCase) => 
+      list = list.filter(c => 
         c.diagnosis?.main.toLowerCase().includes(query) || 
         c.id.toLowerCase().includes(query)
       );
     }
     
     if (status !== 'all') {
-      list = list.filter((c: DermatologyCase) => c.status === status);
+      list = list.filter(c => c.status === status);
     }
     
     return list;
