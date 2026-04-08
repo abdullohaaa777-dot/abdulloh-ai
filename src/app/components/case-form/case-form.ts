@@ -528,7 +528,7 @@ export class CaseFormComponent {
         console.error('Save error:', error);
         alert('Xatolik yuz berdi: ' + error.message);
       } else if (data) {
-        this.router.navigate(['/case', data.id]);
+        this.router.navigate(['/app/case', data.id]);
       }
     } catch (e) {
       console.error('Unexpected error:', e);
@@ -539,6 +539,6 @@ export class CaseFormComponent {
   }
 
   goBack() {
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/app/dashboard']);
   }
 }
