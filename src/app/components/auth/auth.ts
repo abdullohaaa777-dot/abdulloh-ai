@@ -108,7 +108,7 @@ export class AuthComponent {
     if (error) {
       this.error.set(error.message);
     } else {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/app/dashboard']);
     }
     this.loading.set(false);
   }

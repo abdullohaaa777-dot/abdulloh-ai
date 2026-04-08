@@ -1,7 +1,7 @@
-import {ChangeDetectionStrategy, Component, inject, effect, PLATFORM_ID} from '@angular/core';
-import {isPlatformBrowser} from '@angular/common';
-import {RouterOutlet, Router} from '@angular/router';
-import {SupabaseService} from './services/supabase';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { SeoService } from './services/seo';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -11,26 +11,21 @@ import {SupabaseService} from './services/supabase';
   template: `<router-outlet></router-outlet>`,
 })
 export class App {
-  private supabase = inject(SupabaseService);
   private router = inject(Router);
-  private platformId = inject(PLATFORM_ID);
+  private route = inject(ActivatedRoute);
+  private seo = inject(SeoService);
 
   constructor() {
-    effect(() => {
-      if (!isPlatformBrowser(this.platformId)) return;
-
-      const user = this.supabase.user();
-      const url = this.router.url;
-
-      if (!user) {
-        if (!url.includes('/auth')) {
-          this.router.navigate(['/auth']);
+    this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd))
+      .subscribe(() => {
+        let current = this.route;
+        while (current.firstChild) {
+          current = current.firstChild;
         }
-      } else {
-        if (url.includes('/auth')) {
-          this.router.navigate(['/dashboard']);
-        }
-      }
-    });
+
+        const data = current.snapshot.data as { title?: string; description?: string; canonical?: string };
+        this.seo.update(data || {});
+      });
   }
 }
