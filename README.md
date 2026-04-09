@@ -1,20 +1,46 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Abdulloh AI
 
-# Run and deploy your AI Studio app
+Abdulloh AI — transplant bemorlar monitoringi, siydik (basic + strip) tahlili, explainable klinik risk baholash va auditga tayyor qaror qo‘llab-quvvatlash platformasi.
 
-This contains everything you need to run your app locally.
+## Stack
+- Angular 21 (SSR + prerender public routes)
+- Supabase (Auth, Postgres, Storage, RLS)
+- Vercel deployment
+- Rule-based transparent clinical engines (V1)
 
-View your app in AI Studio: https://ai.studio/apps/17a01f4c-674f-482a-9bd7-4a979ab54449
+## Local setup
+1. `npm install`
+2. `.env` faylini `.env.example` asosida to‘ldiring:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - (`GEMINI_API_KEY` ixtiyoriy)
+3. Development: `npm run dev`
+4. Build: `npm run build`
 
-## Run Locally
+## Test
+- Core clinical engines: `npm run test:unit`
 
-**Prerequisites:**  Node.js
+## Supabase setup
+- Migration: `supabase/migrations/20260408_abdullohai_core.sql`
+- RLS, audit triggerlar, app_config va asosiy klinik jadvallar shu faylda.
 
+## Public routes
+`/`, `/about`, `/features`, `/transplant`, `/urine-analysis`, `/privacy`, `/terms`, `/contact`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Protected routes
+`/login`, `/register`, `/dashboard`, `/cases`, `/cases/new`, `/cases/:id`, `/urine/basic`, `/urine/strip`, `/transplant/twin`, `/monitoring`, `/admin`
+
+## Clinical safety disclaimers
+- Tizim mustaqil tashxis qo‘ymaydi.
+- Shifokorni almashtirmaydi.
+- Plain urine photo faqat makroskopik screening.
+- Strip analysis semi-quantitative.
+- Transplant twin: risk/explanation/support engine.
+
+## Docs
+- `docs/architecture.md`
+- `docs/database.md`
+- `docs/urine-analysis.md`
+- `docs/transplant-twin.md`
+- `docs/security.md`
+- `docs/deployment.md`
