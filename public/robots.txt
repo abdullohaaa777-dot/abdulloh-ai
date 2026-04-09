@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /cases
+Disallow: /urine/
+Disallow: /transplant/twin
+Disallow: /monitoring
+Disallow: /admin
+Sitemap: https://abdullohai.sbs/sitemap.xml
