@@ -1,20 +1,44 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Abdulloh AI
 
-# Run and deploy your AI Studio app
+Abdulloh AI — transplant-focused clinical decision support platformasi. Tizim tashxis qo‘ymaydi; risk, signal, monitoring va keyingi test tavsiyalarini tushuntiriladigan shaklda beradi.
 
-This contains everything you need to run your app locally.
+## Stack
+- Angular 21 (SSR-ready)
+- TypeScript strict
+- Supabase (Auth/Postgres/Storage) schema va migrationlar
+- Vercel deploy moslamalari
+- PWA (`manifest.webmanifest` + `sw.js`)
 
-View your app in AI Studio: https://ai.studio/apps/17a01f4c-674f-482a-9bd7-4a979ab54449
+## Setup
+```bash
+npm install
+npm run dev
+```
 
-## Run Locally
+## Environment variables
+`.env.example` asosida:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 
-**Prerequisites:**  Node.js
+## Asosiy route'lar
+Public: `/`, `/about`, `/features`, `/transplant`, `/urine-analysis`, `/privacy`, `/terms`, `/contact`
 
+Protected: `/login`, `/register`, `/dashboard`, `/cases`, `/cases/new`, `/cases/:id`, `/urine/basic`, `/urine/strip`, `/transplant/twin`, `/monitoring`, `/admin`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Database
+`supabase/migrations/20260408_abdulloh_ai_init.sql` da:
+- 14 ta asosiy jadval
+- RLS policylar
+- audit trigger
+- updated_at trigger
+
+## Testlar
+```bash
+npm run build
+npx vitest run src/app/core/clinical-engine.service.spec.ts
+```
+
+## Scientific limitations
+- Plain urine image → faqat makroskopik screening
+- Strip result → semi-quantitative
+- Transplant twin → risk/explanation engine, definitive diagnosis emas
