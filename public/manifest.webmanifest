@@ -1,0 +1,11 @@
+{
+  "name": "Abdulloh AI",
+  "short_name": "AbdullohAI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+  ]
+}
