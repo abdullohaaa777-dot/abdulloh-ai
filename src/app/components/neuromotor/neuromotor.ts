@@ -16,6 +16,15 @@ interface TestDef {
   description: string;
   instruction: string;
   durationSec: number;
+  icon: string;
+  purpose: string;
+  preparation: string[];
+  steps: string[];
+  duringFocus: string[];
+  mistakes: string[];
+  completionText: string;
+  measures: string[];
+  liveHints: string[];
 }
 
 
@@ -73,6 +82,54 @@ const HAND_CONNECTIONS: [number, number][] = [
         </div>
       </section>
 
+
+      @if (pendingTest(); as introTest) {
+        <section class="bg-white border border-indigo-200 rounded-3xl p-6 shadow-sm">
+          <div class="flex items-start gap-3">
+            <mat-icon class="text-indigo-600">{{ introTest.icon }}</mat-icon>
+            <div class="flex-1">
+              <h3 class="text-xl font-black text-medical-text">{{ introTest.title }}</h3>
+              <p class="text-sm text-medical-text-muted mt-1">{{ introTest.description }}</p>
+              <div class="mt-4 grid md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <h4 class="font-bold">Bu test nimani baholaydi?</h4>
+                  <p>{{ introTest.purpose }}</p>
+                </div>
+                <div>
+                  <h4 class="font-bold">Testdan oldin tayyorgarlik</h4>
+                  <ul class="list-disc pl-4">@for (p of introTest.preparation; track p) {<li>{{ p }}</li>}</ul>
+                </div>
+                <div>
+                  <h4 class="font-bold">Qanday bajariladi?</h4>
+                  <ul class="list-decimal pl-4">@for (step of introTest.steps; track step) {<li>{{ step }}</li>}</ul>
+                </div>
+                <div>
+                  <h4 class="font-bold">Test vaqtida nimalarga e’tibor bering?</h4>
+                  <ul class="list-disc pl-4">@for (f of introTest.duringFocus; track f) {<li>{{ f }}</li>}</ul>
+                </div>
+                <div>
+                  <h4 class="font-bold">Qaysi xatolar testni buzishi mumkin?</h4>
+                  <ul class="list-disc pl-4">@for (m of introTest.mistakes; track m) {<li>{{ m }}</li>}</ul>
+                </div>
+                <div>
+                  <h4 class="font-bold">Test tugagach nima bo‘ladi?</h4>
+                  <p>{{ introTest.completionText }}</p>
+                  <p class="text-xs text-medical-text-muted mt-1">Davomiyligi: {{ scaledDuration(introTest.durationSec) }} soniya</p>
+                </div>
+              </div>
+              <div class="mt-4 p-3 rounded-xl bg-slate-50 border">
+                <p class="text-xs uppercase font-black text-medical-text-muted">Bu test nimalarni o‘lchaydi?</p>
+                <p class="text-sm">{{ introTest.measures.join(', ') }}</p>
+              </div>
+              <div class="mt-4 flex gap-2">
+                <button class="btn-primary" (click)="beginTestFromInstruction()">Tushundim, testni boshlash</button>
+                <button class="btn-secondary" (click)="cancelInstruction()">Bekor qilish</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
       <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div class="xl:col-span-2 bg-white border border-medical-border rounded-3xl p-4 shadow-sm">
           <div class="relative rounded-2xl overflow-hidden bg-slate-950 min-h-[340px] md:min-h-[440px]">
@@ -91,6 +148,7 @@ const HAND_CONNECTIONS: [number, number][] = [
             <p class="text-sm font-semibold text-medical-text">Holat: {{ statusText() }}</p>
             <p class="text-sm font-black text-indigo-600">Timer: {{ timeLeft() }}s</p>
           </div>
+          <p class="text-sm text-indigo-700 font-semibold mt-1">{{ liveGuidance() }}</p>
           <div class="w-full bg-slate-100 rounded-full h-2 mt-2"><div class="h-2 rounded-full bg-indigo-500" [style.width.%]="progress()"></div></div>
 
           <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -131,7 +189,7 @@ const HAND_CONNECTIONS: [number, number][] = [
               <p class="font-bold">{{ test.title }}</p>
               <p class="text-xs text-medical-text-muted">{{ test.description }}</p>
               <p class="text-xs text-indigo-600 mt-1">{{ scaledDuration(test.durationSec) }}s</p>
-              <button class="btn-secondary mt-3" (click)="startTest(test)" [disabled]="!cameraRunning()">Boshlash</button>
+              <button class="btn-secondary mt-3" (click)="openInstruction(test)" [disabled]="!cameraRunning()">Boshlash</button>
             </div>
           }
         </div>
@@ -258,6 +316,8 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   durationScale = signal(1);
 
   activeTest = signal<TestDef | null>(null);
+  pendingTest = signal<TestDef | null>(null);
+  liveGuidance = signal("Qo'lingizni kamera markazida ushlang.");
   timeLeft = signal(0);
   countdown = signal(0);
   progress = signal(0);
@@ -269,13 +329,118 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   liveSummary = signal({ harakat_barqarorligi: 0, harakat_tezligi: 0, koordinatsiya: 0, aniqlik: 0, ritm_muntazamligi: 0, charchashga_moyillik: 0 });
 
   tests: TestDef[] = [
-    { id: 'rest_tremor', title: 'Rest Tremor Observation', description: 'Qo‘lni tinch holatda ushlang.', instruction: 'Kaftni kadr markazida tuting, 3 soniya tinch holatni saqlang.', durationSec: 20 },
-    { id: 'finger_tapping', title: 'Finger Tapping Test', description: 'Barmoq urish ritmini baholash.', instruction: 'Bosh barmoq va ko‘rsatkich barmoqni bir tekis ritmda tekkizing.', durationSec: 20 },
-    { id: 'open_close', title: 'Open-Close Hand Test', description: 'Kaftni ochib-yoping.', instruction: 'Kaftni to‘liq ochib, so‘ng musht qiling. Harakatni bir maromda takrorlang.', durationSec: 20 },
-    { id: 'pinch_precision', title: 'Pinch Precision Test', description: 'Pinch aniqligi va ushlab turish.', instruction: 'Pinch holatini 1-2 soniya ushlab turing, so‘ng qo‘yib yuboring.', durationSec: 18 },
-    { id: 'finger_sequence', title: 'Finger Sequencing Test', description: 'Ketma-ketlikni bajarish.', instruction: '1→2→3 barmoq ketma-ketligini takrorlang, tezlikdan ko‘ra aniqlikka e’tibor bering.', durationSec: 20 },
-    { id: 'target_touch', title: 'Target Touch Test', description: 'Nishonlarga yetib borish aniqligi.', instruction: 'Harakat markazini yashil nishonlarga yaqinlashtiring.', durationSec: 22 },
-    { id: 'hold_still', title: 'Hold-Still Stability Test', description: 'Stabil ushlab turish testi.', instruction: 'Qo‘lni bir holatda imkon qadar qimirlatmasdan tuting.', durationSec: 16 }
+    {
+      id: 'rest_tremor',
+      title: 'Rest Tremor Observation',
+      description: 'Qo‘lni tinch holatda ushlang.',
+      instruction: 'Kaftni kadr markazida tuting, 3 soniya tinch holatni saqlang.',
+      durationSec: 20,
+      icon: 'back_hand',
+      purpose: 'Qo‘lning tinch holatdagi barqarorligi va mayda tebranishlar (mikro-harakat)ni kuzatadi.',
+      preparation: ['Qo‘lni qulay holatga keltiring.', 'Qo‘l stolga tayangan yoki erkin tinch holatda bo‘lishi mumkin.', 'Yorug‘lik yetarli bo‘lsin va qo‘l to‘liq ko‘rinsin.'],
+      steps: ['Qo‘lingizni kamera oldida tinch holatda ushlab turing.', 'Barmoqlarni ortiqcha qimirlatmang.', 'Tizim countdown tugagach avtomatik yozishni boshlaydi.'],
+      duringFocus: ['Qo‘lni kamera markazida saqlang.', 'Keraksiz harakat qilmang.'],
+      mistakes: ['Qo‘l kameradan chiqib ketishi.', 'Barmoqlarni ataylab qimirlatish.', 'Juda yaqin/juda uzoq masofa.'],
+      completionText: 'Tizim barqarorlik, drift va mayda tebranish proxy ko‘rsatkichlarini chiqaradi.',
+      measures: ['stability', 'drift', 'micro-movement'],
+      liveHints: ['Qo‘lingizni kamera markazida ushlang', 'Barmoqlarni ortiqcha qimirlatmang', 'Maqsad — tinch holatdagi mayda tebranishlarni kuzatish']
+    },
+    {
+      id: 'finger_tapping',
+      title: 'Finger Tapping Test',
+      description: 'Barmoq urish ritmini baholash.',
+      instruction: 'Bosh barmoq va ko‘rsatkich barmoqni bir tekis ritmda tekkizing.',
+      durationSec: 20,
+      icon: 'touch_app',
+      purpose: 'Tezlik, ritm muntazamligi va charchashga moyillikni baholaydi.',
+      preparation: ['Qo‘l to‘liq ko‘rinadigan masofani tanlang.', 'Bosh barmoq va ko‘rsatkich barmoq aniq ko‘rinsin.'],
+      steps: ['Bosh barmoq bilan ko‘rsatkich barmog‘ini bir-biriga tekkizing.', 'Ajrating va yana takrorlang.', 'Harakatni ketma-ket va bir xil tezlikda davom ettiring.'],
+      duringFocus: ['Harakatni bir maromda bajaring.', 'Katta qo‘l silkitish shart emas.'],
+      mistakes: ['Ritmni tez-tez o‘zgartirish.', 'Qo‘lni kadrdan chiqarish.', 'Juda tez yoki juda sust harakat.'],
+      completionText: 'Tizim tap soni, ritm va tezlik bo‘yicha neytral skrining xulosasini beradi.',
+      measures: ['speed', 'rhythm regularity', 'fatigue trend'],
+      liveHints: ['Endi bosh barmoqni ko‘rsatkich barmog‘iga tekkizing', 'Harakatni bir maromda davom ettiring', 'Harakat juda tez bo‘lsa maromni barqaror qiling']
+    },
+    {
+      id: 'open_close',
+      title: 'Open-Close Hand Test',
+      description: 'Kaftni ochib-yoping.',
+      instruction: 'Kaftni to‘liq ochib, so‘ng musht qiling.',
+      durationSec: 20,
+      icon: 'pan_tool',
+      purpose: 'Qo‘l harakati tezligi, silliqligi va amplitudasini baholaydi.',
+      preparation: ['Kaft kamera qarshisida bo‘lsin.', 'Bilakni qulay ushlang.'],
+      steps: ['Kaftni to‘liq oching.', 'Keyin qo‘lingizni musht qiling.', 'Shu siklni test tugaguncha takrorlang.'],
+      duringFocus: ['Har safar kaftni to‘liq oching.', 'Mushtni aniq yoping.'],
+      mistakes: ['Yarim ochish/yopish.', 'Ritmni yo‘qotish.', 'Qo‘lning yarmi kadrdan tashqarida qolishi.'],
+      completionText: 'Sikl soni, silliqlik va amplituda barqarorligi ko‘rsatkichlari chiqariladi.',
+      measures: ['speed', 'smoothness', 'amplitude consistency'],
+      liveHints: ['Mushtni to‘liq yoping va qayta oching', 'Harakatni bir maromda davom ettiring', 'Qo‘l yetarlicha ko‘rinmayapti']
+    },
+    {
+      id: 'pinch_precision',
+      title: 'Pinch Precision Test',
+      description: 'Pinch aniqligi va ushlab turish.',
+      instruction: 'Bosh barmoq va ko‘rsatkich barmoq uchini aniq birlashtiring.',
+      durationSec: 18,
+      icon: 'gesture',
+      purpose: 'Nozik motorika, pinch aniqligi va ushlab turish barqarorligini baholaydi.',
+      preparation: ['Barmoq uchlari aniq ko‘rinadigan masofani tanlang.', 'Yorug‘likni yaxshilang.'],
+      steps: ['Bosh barmoq va ko‘rsatkich barmoq uchini birlashtiring.', 'Qisqa ushlab turing.', 'Ajrating va qayta takrorlang.'],
+      duringFocus: ['Shoshmasdan aniq bajaring.', 'Harakatni nazorat bilan bajaring.'],
+      mistakes: ['Pinch nuqtasi noaniq bo‘lishi.', 'Qo‘l silkinishi.', 'Kadrdan chiqib ketish.'],
+      completionText: 'Pinch aniqligi va barqarorligi bo‘yicha ko‘rsatkichlar taqdim etiladi.',
+      measures: ['fine motor control', 'accuracy', 'stability'],
+      liveHints: ['Pinchni aniq bajaring', 'Pinch yetarlicha aniq aniqlanmadi', 'Qo‘l to‘liq ko‘rinmayapti']
+    },
+    {
+      id: 'finger_sequence',
+      title: 'Finger Sequencing Test',
+      description: 'Ketma-ketlikni bajarish.',
+      instruction: '1→2→3 barmoq ketma-ketligini takrorlang.',
+      durationSec: 20,
+      icon: 'filter_3',
+      purpose: 'Ketma-ket motor rejalash, koordinatsiya va reaktsiya izchilligini baholaydi.',
+      preparation: ['Kamera oldida qo‘lni to‘g‘ri joylashtiring.', 'Barmoqlar soni aniq ko‘rinsin.'],
+      steps: ['Avval 1 barmoq ko‘rsating.', 'So‘ng 2 barmoq.', 'Keyin 3 barmoq.', 'Ketma-ketlikni buzmasdan takrorlang.'],
+      duringFocus: ['Har holatni 0.5–1 soniya ushlab ko‘rsating.', 'Ketma-ketlikni chalkashtirmang.'],
+      mistakes: ['Ketma-ketlikni buzish.', 'Juda tez almashtirish.', 'Kamera tashqarisida ko‘rsatish.'],
+      completionText: 'To‘g‘ri ketma-ketlik soni va xatolar bo‘yicha neytral tahlil beriladi.',
+      measures: ['coordination', 'sequencing', 'reaction consistency'],
+      liveHints: ['Barmoqlar sonini ketma-ket to‘g‘ri ko‘rsating', 'Ketma-ketlik buzildi. Qaytadan 1 barmoqdan boshlang', 'Har bir holat aniq ko‘rinsin']
+    },
+    {
+      id: 'target_touch',
+      title: 'Target Touch Test',
+      description: 'Nishonlarga yetib borish aniqligi.',
+      instruction: 'Ekrandagi nishonga ko‘rsatkich barmoq bilan yetib boring.',
+      durationSec: 22,
+      icon: 'my_location',
+      purpose: 'Aniqlik, yo‘nalish nazorati va harakat boshqaruvini baholaydi.',
+      preparation: ['Nishon va qo‘l bir kadrda ko‘rinsin.', 'Qo‘lni juda tez silkitmang.'],
+      steps: ['Yashil nishon paydo bo‘lganda unga yaqinlashing.', 'Har bir nishonni iloji boricha aniq uring.', 'Keyingi nishonga nazorat bilan o‘ting.'],
+      duringFocus: ['Keskin siljish o‘rniga nazoratli harakat qiling.', 'Harakat trayektoriyasini barqaror saqlang.'],
+      mistakes: ['Nishondan ortiqcha oshib ketish.', 'Juda sust javob.', 'Nishon paytida qo‘lning yo‘qolishi.'],
+      completionText: 'Hit/miss, aniqlik va harakat nazorati ko‘rsatkichlari ko‘rsatiladi.',
+      measures: ['accuracy', 'movement control', 'smoothness'],
+      liveHints: ['Nishonga yo‘naling', 'Harakat noto‘g‘ri. Ekrandagi namunaga amal qiling', 'Kamera bilan oraliq masofani biroz moslang']
+    },
+    {
+      id: 'hold_still',
+      title: 'Hold-Still Stability Test',
+      description: 'Stabil ushlab turish testi.',
+      instruction: 'Qo‘lni bir holatda imkon qadar qimirlatmasdan tuting.',
+      durationSec: 16,
+      icon: 'pan_tool_alt',
+      purpose: 'Barqarorlik, drift va mikro-harakat darajasini baholaydi.',
+      preparation: ['Qo‘lni markazda joylashtiring.', 'Qulay holatda muzlatib ushlashga tayyor turing.'],
+      steps: ['Ko‘rsatilgan holatni qabul qiling.', '8–10 soniya qimirlatmasdan ushlang.', 'Qo‘l kamera markazida qolsin.'],
+      duringFocus: ['Iloji boricha harakatsiz turing.', 'Nafasni tabiiy saqlang.'],
+      mistakes: ['Qo‘lni pastga tushirib yuborish.', 'Barmoqlarni keraksiz qimirlatish.', 'Kadrdan chiqib ketish.'],
+      completionText: 'Stability index va drift bo‘yicha neytral skrining ko‘rsatiladi.',
+      measures: ['stability', 'drift', 'micro-movement'],
+      liveHints: ['Qo‘lingizni kamera markazida ushlang', 'Iloji boricha qimirlatmang', 'Test muvaffaqiyatli yakunlandi']
+    }
   ];
 
   async ngAfterViewInit() {
@@ -343,6 +508,23 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     this.activeTest.set(null);
     this.statusText.set('To‘xtatildi');
     this.handTracker.dispose();
+  }
+
+
+  openInstruction(test: TestDef) {
+    this.pendingTest.set(test);
+    this.liveGuidance.set(test.instruction);
+  }
+
+  cancelInstruction() {
+    this.pendingTest.set(null);
+  }
+
+  beginTestFromInstruction() {
+    const test = this.pendingTest();
+    if (!test) return;
+    this.pendingTest.set(null);
+    this.startTest(test);
   }
 
   startTest(test: TestDef) {
@@ -536,6 +718,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     if (this.activeTest() && this.countdown() === 0) {
       this.frameStats.push({ ts: performance.now(), motion, cx: this.smoothed.x, cy: this.smoothed.y });
       this.detectStableEvents(motion, this.smoothed.x, this.smoothed.y, w, h);
+      this.updateLiveGuidance();
     }
 
     this.updateLiveSummary();
@@ -585,6 +768,30 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
 
     this.rafId = requestAnimationFrame(this.runLoop);
   };
+
+
+  private updateLiveGuidance() {
+    const test = this.activeTest();
+    if (!test) return;
+
+    if (!this.handDetected()) {
+      this.liveGuidance.set('Qo‘l topilmadi. Qo‘lingizni kamera ichiga olib kiring. Qo‘l to‘liq ko‘rinmayapti.');
+      return;
+    }
+
+    const speed = this.liveSummary().harakat_tezligi;
+    if (speed > 80) {
+      this.liveGuidance.set('Harakat juda tez. Bir maromga keltiring.');
+      return;
+    }
+    if (speed < 20) {
+      this.liveGuidance.set('Harakat juda sust. Davom eting.');
+      return;
+    }
+
+    const index = Math.min(test.liveHints.length - 1, Math.floor((100 - this.timeLeft()) / 4));
+    this.liveGuidance.set(test.liveHints[Math.max(0, index)] || test.instruction);
+  }
 
   private detectStableEvents(motion: number, x: number, y: number, w: number, h: number) {
     const now = performance.now();
@@ -645,6 +852,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     this.latestResult.set(result);
     this.lastCompletedTest.set(test.id);
     this.statusText.set('Test yakunlandi');
+    this.liveGuidance.set(test.completionText);
     this.progress.set(100);
     this.activeTest.set(null);
     this.timeLeft.set(0);
