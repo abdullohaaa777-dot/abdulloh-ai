@@ -50,3 +50,12 @@ After deploy, verify:
 5. Dermatology AI flow does not crash when key is missing.
 6. File upload/delete works in `medical-uploads` bucket.
 7. Case delete removes DB rows and associated files.
+
+## Neuromotor AI screening notes
+
+- The neuromotor flow supports two interpretation paths:
+  1. **Gemini-powered screening** when `GEMINI_API_KEY` is available.
+  2. **Local fallback interpretation** when the key is missing or the AI request fails.
+- Keep the on-screen disclaimer that this feature is for **screening support** and not a standalone diagnosis.
+- For more stable camera tracking, use good frontal lighting and keep the active hand centered in frame.
+

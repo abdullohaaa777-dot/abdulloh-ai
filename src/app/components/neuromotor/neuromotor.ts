@@ -9,6 +9,7 @@ import {
   NeuroMotorTestType
 } from '../../services/neuromotor-storage';
 import { HandTrackerService } from '../../services/hand-tracker';
+import { NeuromotorInterpretationService } from '../../services/neuromotor-interpretation';
 
 interface TestDef {
   id: NeuroMotorTestType;
@@ -206,6 +207,13 @@ const HAND_CONNECTIONS: [number, number][] = [
           </div>
 
           <div class="grid md:grid-cols-3 gap-3 mb-4">
+
+          <div class="mt-4 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
+            <p class="text-xs uppercase font-black text-emerald-700">AI skrining tahlili</p>
+            <p class="text-sm text-medical-text">Bu mustaqil tashxis emas. Xavf foizi: <strong>{{ aiRiskPercent() }}%</strong> ({{ aiSource() }})</p>
+            <p class="text-xs text-medical-text-muted mt-1">Natijalar faqat skrining va kuzatuv uchun mo‘ljallangan. Aniq tashxis uchun nevrolog ko‘rigi zarur.</p>
+          </div>
+
             <div class="p-3 border rounded-xl bg-slate-50"><p class="text-xs">Speed</p><p class="font-black text-xl">{{ overall().speed }}</p></div>
             <div class="p-3 border rounded-xl bg-slate-50"><p class="text-xs">Stability</p><p class="font-black text-xl">{{ overall().stability }}</p></div>
             <div class="p-3 border rounded-xl bg-slate-50"><p class="text-xs">Rhythm</p><p class="font-black text-xl">{{ overall().rhythm }}</p></div>
@@ -293,6 +301,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
 
   private storage = inject(NeuroMotorStorageService);
   private handTracker = inject(HandTrackerService);
+  private interpretationService = inject(NeuromotorInterpretationService);
   private stream: MediaStream | null = null;
   private rafId: number | null = null;
   private prevFrame: Uint8ClampedArray | null = null;
@@ -325,6 +334,8 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   sessions = signal<NeuroMotorSession[]>([]);
   testResults = signal<NeuroMotorTestResult[]>([]);
   latestResult = signal<NeuroMotorTestResult | null>(null);
+  aiRiskPercent = signal<number>(0);
+  aiSource = signal<'local' | 'ai'>('local');
   lastCompletedTest = signal<NeuroMotorTestType | null>(null);
   liveSummary = signal({ harakat_barqarorligi: 0, harakat_tezligi: 0, koordinatsiya: 0, aniqlik: 0, ritm_muntazamligi: 0, charchashga_moyillik: 0 });
 
@@ -574,6 +585,43 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
       fatigue: avg(all.map(a => a.summary.charchashga_moyillik)),
       rhythm: avg(all.map(a => a.summary.ritm_muntazamligi))
     };
+  }
+
+
+  private async refreshAiInterpretation() {
+    const tests = this.testResults();
+    if (!tests.length) return;
+
+    const pick = (id: NeuroMotorTestType, key: string, fallback = 50) => {
+      const t = tests.find(x => x.test === id);
+      const raw = t?.metrics?.[key];
+      return typeof raw === 'number' ? raw : fallback;
+    };
+
+    const metrics = {
+      tappingSpeed: pick('finger_tapping', 'taps_per_10_sec', this.overall().speed),
+      tappingRhythmVariability: 100 - (tests.find(x => x.test === 'finger_tapping')?.summary.ritm_muntazamligi ?? 50),
+      openCloseSpeed: tests.find(x => x.test === 'open_close')?.summary.harakat_tezligi ?? this.overall().speed,
+      openCloseAmplitudeConsistency: Number(pick('open_close', 'amplitude_consistency', 60)),
+      pinchAccuracy: Number(pick('pinch_precision', 'targeting_accuracy', 60)),
+      pinchHoldStability: Number(pick('pinch_precision', 'hold_stability', 60)),
+      sequencingErrors: Number(pick('finger_sequence', 'sequencing_errors', 2)),
+      holdStillDrift: Number(pick('hold_still', 'drift_score', 50)),
+      tremorAmplitudeProxy: Number(pick('rest_tremor', 'movement_amplitude_proxy', 1)),
+      fatigueTrend: tests.reduce((a, b) => a + b.summary.charchashga_moyillik, 0) / tests.length,
+      overallMotorStability: this.overall().stability,
+      overallCoordination: this.overall().coordination,
+      overallFineMotorControl: Math.round((this.overall().accuracy + this.overall().coordination) / 2)
+    };
+
+    const out = await this.interpretationService.interpret(tests, metrics);
+    this.aiRiskPercent.set(out.riskPercent);
+    this.aiSource.set(out.source);
+
+    const latest = this.latestResult();
+    if (latest) {
+      this.latestResult.set({ ...latest, interpretation: out.interpretation });
+    }
   }
 
   trend(metric: 'stability' | 'speed' | 'rhythm') {
@@ -854,6 +902,8 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     this.statusText.set('Test yakunlandi');
     this.liveGuidance.set(test.completionText);
     this.progress.set(100);
+
+    this.refreshAiInterpretation().catch(() => undefined);
     this.activeTest.set(null);
     this.timeLeft.set(0);
     this.frameStats = [];
