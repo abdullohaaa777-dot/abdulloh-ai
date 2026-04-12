@@ -18,7 +18,7 @@ import { Router, RouterModule } from '@angular/router';
           </div>
           <div class="flex flex-col">
             <span class="text-lg font-bold text-medical-text leading-tight">Abdulloh AI</span>
-            <span class="text-[10px] text-medical-primary font-semibold uppercase tracking-wider">Medical System</span>
+            <span class="text-[10px] text-medical-primary font-semibold uppercase tracking-wider">Tibbiy tizim</span>
           </div>
         </div>
 
@@ -27,22 +27,27 @@ import { Router, RouterModule } from '@angular/router';
              [routerLinkActiveOptions]="{exact: true}"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>dashboard</mat-icon>
-            <span class="font-medium">Dashboard</span>
+            <span class="font-medium">Bosh sahifa</span>
           </a>
           <a routerLink="/digital-twin" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>person_pin</mat-icon>
-            <span class="font-medium">Digital Twin</span>
+            <span class="font-medium">Raqamli egizak</span>
           </a>
           <a routerLink="/dermatology-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>health_and_safety</mat-icon>
             <span class="font-medium">Dermatologik AI</span>
           </a>
+          <a routerLink="/respiratory-voice" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+             class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
+            <mat-icon>air</mat-icon>
+            <span class="font-medium">Nafas va Ovoz Tahlili</span>
+          </a>
           <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
-            <span class="font-medium">Monitoring</span>
+            <span class="font-medium">Kuzatuv</span>
           </a>
           <a routerLink="/cystic-fibrosis" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
@@ -57,7 +62,7 @@ import { Router, RouterModule } from '@angular/router';
           <a routerLink="/simulator" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>model_training</mat-icon>
-            <span class="font-medium">Simulator</span>
+            <span class="font-medium">Simulyator</span>
           </a>
           <a routerLink="/telemedicine" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
@@ -67,7 +72,7 @@ import { Router, RouterModule } from '@angular/router';
           <a routerLink="/analytics" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>analytics</mat-icon>
-            <span class="font-medium">Analytics</span>
+            <span class="font-medium">Tahlillar</span>
           </a>
           <div class="pt-4 pb-2 px-3 text-[10px] font-bold text-medical-text-muted uppercase tracking-widest">Amallar</div>
           <a routerLink="/new-case" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"

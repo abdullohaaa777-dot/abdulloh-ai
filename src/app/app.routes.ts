@@ -12,6 +12,7 @@ import { CysticFibrosisComponent } from './components/cystic-fibrosis/cystic-fib
 import { ScenarioSimulatorComponent } from './components/scenario-simulator/scenario-simulator';
 import { TreatmentAdherenceComponent } from './components/treatment-adherence/treatment-adherence';
 import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-ai';
+import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -22,6 +23,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: CaseListComponent },
       { path: 'digital-twin', component: DigitalTwinComponent },
       { path: 'dermatology-ai', component: DermatologyAIComponent },
+      { path: 'respiratory-voice', component: RespiratoryVoiceComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },
