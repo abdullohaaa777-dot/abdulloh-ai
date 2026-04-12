@@ -252,6 +252,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   sessions = signal<NeuroMotorSession[]>([]);
   testResults = signal<NeuroMotorTestResult[]>([]);
   latestResult = signal<NeuroMotorTestResult | null>(null);
+  lastCompletedTest = signal<NeuroMotorTestType | null>(null);
   liveSummary = signal({ harakat_barqarorligi: 0, harakat_tezligi: 0, koordinatsiya: 0, aniqlik: 0, ritm_muntazamligi: 0, charchashga_moyillik: 0 });
 
   tests: TestDef[] = [
@@ -292,6 +293,11 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
 
   async startCamera() {
     this.cameraError.set(null);
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      this.cameraError.set("Brauzeringizda kamera API qo'llab-quvvatlanmaydi.");
+      this.statusText.set('Kamera mavjud emas');
+      return;
+    }
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       const video = this.videoRef?.nativeElement;
@@ -334,14 +340,16 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   }
 
   retryTest() {
-    const test = this.activeTest();
+    const currentId = this.activeTest()?.id || this.lastCompletedTest();
+    if (!currentId) return;
+    const test = this.tests.find(t => t.id === currentId);
     if (test) this.startTest(test);
   }
 
   goNextTest() {
-    const current = this.activeTest();
-    if (!current) return;
-    const idx = this.tests.findIndex(t => t.id === current.id);
+    const currentId = this.activeTest()?.id || this.lastCompletedTest();
+    if (!currentId) return;
+    const idx = this.tests.findIndex(t => t.id === currentId);
     const next = this.tests[(idx + 1) % this.tests.length];
     this.startTest(next);
   }
@@ -380,6 +388,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   }
 
   async saveSession() {
+    if (typeof window === 'undefined') return;
     if (!this.testResults().length) return;
     const session: NeuroMotorSession = {
       id: crypto.randomUUID(),
@@ -396,6 +405,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   }
 
   exportJson() {
+    if (typeof window === 'undefined') return;
     const payload = { createdAt: new Date().toISOString(), tests: this.testResults(), overall: this.overall() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -570,6 +580,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     const result = this.computeResult(test.id, this.frameStats.slice());
     this.testResults.update(prev => [...prev.filter(x => x.test !== test.id), result]);
     this.latestResult.set(result);
+    this.lastCompletedTest.set(test.id);
     this.statusText.set('Test yakunlandi');
     this.progress.set(100);
     this.activeTest.set(null);

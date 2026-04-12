@@ -67,6 +67,7 @@ export class NeuroMotorStorageService {
   }
 
   async saveSession(session: NeuroMotorSession): Promise<{ error: null | { message: string } }> {
+    if (typeof window === 'undefined') return { error: { message: 'Browser muhitida saqlash mavjud emas.' } };
     try {
       const sessions = this.readLocal();
       const normalized: NeuroMotorSession = {
@@ -111,7 +112,7 @@ export class NeuroMotorStorageService {
     const tests = Array.isArray(session.tests) ? session.tests : [];
 
     return {
-      id: session.id || crypto.randomUUID(),
+      id: session.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `local-${Date.now()}`),
       createdAt: session.createdAt || new Date().toISOString(),
       hand: session.hand || 'unknown',
       tests: tests.map((t) => {
