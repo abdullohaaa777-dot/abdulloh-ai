@@ -8,6 +8,7 @@ import {
   NeuroMotorTestResult,
   NeuroMotorTestType
 } from '../../services/neuromotor-storage';
+import { HandTrackerService } from '../../services/hand-tracker';
 
 interface TestDef {
   id: NeuroMotorTestType;
@@ -16,6 +17,16 @@ interface TestDef {
   instruction: string;
   durationSec: number;
 }
+
+
+const HAND_CONNECTIONS: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  [0, 17]
+];
 
 @Component({
   selector: 'app-neuromotor',
@@ -223,6 +234,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   @ViewChild('overlay') canvasRef?: ElementRef<HTMLCanvasElement>;
 
   private storage = inject(NeuroMotorStorageService);
+  private handTracker = inject(HandTrackerService);
   private stream: MediaStream | null = null;
   private rafId: number | null = null;
   private prevFrame: Uint8ClampedArray | null = null;
@@ -235,6 +247,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
   private testTimer: ReturnType<typeof setInterval> | null = null;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private testStartedAtIso = new Date().toISOString();
+  private lastFrameTs = 0;
 
   cameraRunning = signal(false);
   cameraError = signal<string | null>(null);
@@ -299,6 +312,10 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
       return;
     }
     try {
+      const trackerReady = await this.handTracker.initialize();
+      if (!trackerReady) {
+        this.cameraError.set(this.handTracker.error() || "Qo'l trekeri ishga tushmadi.");
+      }
       this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       const video = this.videoRef?.nativeElement;
       if (!video) return;
@@ -325,6 +342,7 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     this.cameraRunning.set(false);
     this.activeTest.set(null);
     this.statusText.set('To‘xtatildi');
+    this.handTracker.dispose();
   }
 
   startTest(test: TestDef) {
@@ -462,35 +480,56 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(video, 0, 0, w, h);
 
-    const image = ctx.getImageData(0, 0, w, h);
-    const data = image.data;
+    const nowTs = performance.now();
+    this.lastFrameTs = nowTs;
+
+    const handResult = this.handTracker.detect(video, nowTs);
+    const landmarks = handResult?.landmarks?.[0];
 
     let motion = 0;
-    let mx = 0;
-    let my = 0;
-    let changed = 0;
-    const step = 20;
+    let rawX = w / 2;
+    let rawY = h / 2;
 
-    if (this.prevFrame) {
-      for (let i = 0; i < data.length; i += 4 * step) {
-        const diff = Math.abs(data[i] - this.prevFrame[i]) + Math.abs(data[i + 1] - this.prevFrame[i + 1]) + Math.abs(data[i + 2] - this.prevFrame[i + 2]);
-        if (diff > 60 * this.sensitivity()) {
-          motion += diff;
-          const px = ((i / 4) % w);
-          const py = Math.floor((i / 4) / w);
-          mx += px;
-          my += py;
-          changed++;
+    if (landmarks?.length) {
+      this.handDetected.set(true);
+      const center = landmarks.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+      rawX = (center.x / landmarks.length) * w;
+      rawY = (center.y / landmarks.length) * h;
+
+      if (this.prevFrame) {
+        const px = Math.max(0, Math.min(w - 1, Math.round(rawX)));
+        const py = Math.max(0, Math.min(h - 1, Math.round(rawY)));
+        const idx = (py * w + px) * 4;
+        motion = Math.abs(this.prevFrame[idx] - 120) * 10;
+      }
+    } else {
+      this.handDetected.set(false);
+      const image = ctx.getImageData(0, 0, w, h);
+      const data = image.data;
+      let mx = 0;
+      let my = 0;
+      let changed = 0;
+      const step = 24;
+
+      if (this.prevFrame) {
+        for (let i = 0; i < data.length; i += 4 * step) {
+          const diff = Math.abs(data[i] - this.prevFrame[i]) + Math.abs(data[i + 1] - this.prevFrame[i + 1]) + Math.abs(data[i + 2] - this.prevFrame[i + 2]);
+          if (diff > 60 * this.sensitivity()) {
+            motion += diff;
+            const px = ((i / 4) % w);
+            const py = Math.floor((i / 4) / w);
+            mx += px;
+            my += py;
+            changed++;
+          }
         }
       }
+      if (changed > 8) {
+        rawX = mx / changed;
+        rawY = my / changed;
+      }
+      this.prevFrame = new Uint8ClampedArray(data);
     }
-    this.prevFrame = new Uint8ClampedArray(data);
-
-    const detected = changed > 10;
-    this.handDetected.set(detected);
-
-    const rawX = detected ? mx / changed : w / 2;
-    const rawY = detected ? my / changed : h / 2;
     this.smoothed.x = this.smoothed.x ? this.smoothed.x * 0.75 + rawX * 0.25 : rawX;
     this.smoothed.y = this.smoothed.y ? this.smoothed.y * 0.75 + rawY * 0.25 : rawY;
 
@@ -506,10 +545,34 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     ctx.strokeRect(8, 8, w - 16, h - 16);
 
     if (this.skeletonEnabled()) {
+      const detected = this.handDetected();
       ctx.fillStyle = detected ? '#10b981' : '#ef4444';
       ctx.beginPath();
       ctx.arc(this.smoothed.x, this.smoothed.y, detected ? 9 : 6, 0, Math.PI * 2);
       ctx.fill();
+
+      if (handResult?.landmarks?.length) {
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 2;
+        for (const hand of handResult.landmarks) {
+          for (const [a, b] of HAND_CONNECTIONS) {
+            const p1 = hand[a];
+            const p2 = hand[b];
+            if (!p1 || !p2) continue;
+            ctx.beginPath();
+            ctx.moveTo(p1.x * w, p1.y * h);
+            ctx.lineTo(p2.x * w, p2.y * h);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#f59e0b';
+          for (const p of hand) {
+            ctx.beginPath();
+            ctx.arc(p.x * w, p.y * h, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
     }
 
     if (this.activeTest()?.id === 'target_touch') {
