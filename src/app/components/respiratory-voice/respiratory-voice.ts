@@ -41,7 +41,7 @@ interface RespiratoryTest {
           <li>Kamera orqali nafas harakati (yuz/bo‘yin/ko‘krak qafasi) signalini baholaydi.</li>
           <li>Mikrofon orqali tinch nafas, yo‘tal va gapirishdagi nafas uzilishlarini tahlil qiladi.</li>
           <li>Simptom anketa bilan signal metriclari birlashtirilib skrining xulosasi tuziladi.</li>
-          <li>Gemini mavjud bo‘lsa metrikalar asosida chuqur izoh beradi, bo‘lmasa local fallback ishlaydi.</li>
+          <li>AI tahlil qatlami mavjud bo‘lsa metrikalar asosida chuqur izoh beradi, bo‘lmasa lokal fallback ishlaydi.</li>
         </ol>
       </section>
 
@@ -153,7 +153,7 @@ interface RespiratoryTest {
           <div class="grid md:grid-cols-3 gap-3">
             <div class="p-4 rounded-2xl border bg-slate-50"><p class="text-xs">Skrining xavf foizi</p><p class="text-3xl font-black text-rose-600">{{ result.riskPercent }}%</p></div>
             <div class="p-4 rounded-2xl border bg-slate-50"><p class="text-xs">Normaga yaqinlik</p><p class="text-3xl font-black text-emerald-600">{{ result.normalityPercent }}%</p></div>
-            <div class="p-4 rounded-2xl border bg-slate-50"><p class="text-xs">Manba</p><p class="text-2xl font-black">{{ result.source === 'ai' ? 'Gemini' : 'Local' }}</p></div>
+            <div class="p-4 rounded-2xl border bg-slate-50"><p class="text-xs">Tahlil turi</p><p class="text-2xl font-black">{{ result.source === 'ai' ? 'Kengaytirilgan AI tahlili' : 'Lokal tahlil' }}</p></div>
           </div>
 
           <div class="grid lg:grid-cols-2 gap-4 text-sm">
@@ -174,6 +174,23 @@ interface RespiratoryTest {
           <h4 class="font-black">Diagrammalar</h4>
           <div class="grid xl:grid-cols-3 gap-4">
             <div class="p-4 border rounded-2xl">
+              <p class="text-xs font-black">Respirator waveform</p>
+              <svg viewBox="0 0 300 120" class="w-full h-28 mt-2">
+                <polyline [attr.points]="waveformPoints(result.waveform)" fill="none" stroke="#2563eb" stroke-width="2.5"></polyline>
+              </svg>
+            </div>
+            <div class="p-4 border rounded-2xl">
+              <p class="text-xs font-black">Ko‘krak harakati area chart</p>
+              <svg viewBox="0 0 300 120" class="w-full h-28 mt-2">
+                <path [attr.d]="motionAreaPath(result.motionSeries || [])" fill="#93c5fd88" stroke="#0ea5e9" stroke-width="2"></path>
+              </svg>
+            </div>
+            <div class="p-4 border rounded-2xl">
+              <p class="text-xs font-black">Normaga yaqinlik gauge</p>
+              <div class="mt-3 h-16 rounded-t-full" [style.background]="semiGaugeBackground(result.normalityPercent)"></div>
+              <p class="text-center text-sm font-black mt-1">{{ result.normalityPercent }}%</p>
+            </div>
+            <div class="p-4 border rounded-2xl">
               <p class="text-xs font-black">Line trend (so‘nggi sessiyalar)</p>
               <svg viewBox="0 0 300 120" class="w-full h-28 mt-2">
                 <polyline [attr.points]="lineChartPoints()" fill="none" stroke="#2563eb" stroke-width="3"></polyline>
@@ -190,6 +207,24 @@ interface RespiratoryTest {
                   <div><div class="flex justify-between"><span>{{ r.label }}</span><span>{{ r.value }}</span></div><div class="h-2 bg-slate-200 rounded-full"><div class="h-2 bg-cyan-600 rounded-full" [style.width.%]="r.value"></div></div></div>
                 }
               </div>
+            </div>
+            <div class="p-4 border rounded-2xl xl:col-span-2">
+              <p class="text-xs font-black">Timeline: sessiyalar bo‘yicha xavf o‘zgarishi</p>
+              <svg viewBox="0 0 420 120" class="w-full h-28 mt-2">
+                <polyline [attr.points]="timelinePoints()" fill="none" stroke="#7c3aed" stroke-width="2"></polyline>
+              </svg>
+            </div>
+            <div class="p-4 border rounded-2xl">
+              <p class="text-xs font-black">Stacked comparison (joriy vs oldingi)</p>
+              @for (c of stackedComparison(result.metrics); track c.label) {
+                <div class="mt-2">
+                  <div class="flex justify-between text-xs"><span>{{ c.label }}</span><span>{{ c.current }}/{{ c.previous }}</span></div>
+                  <div class="h-2 bg-slate-200 rounded-full overflow-hidden flex">
+                    <div class="h-2 bg-emerald-500" [style.width.%]="c.current"></div>
+                    <div class="h-2 bg-indigo-300" [style.width.%]="100-c.current"></div>
+                  </div>
+                </div>
+              }
             </div>
           </div>
         </section>
@@ -381,6 +416,7 @@ export class RespiratoryVoiceComponent implements OnDestroy {
       metrics,
       questionnaire: this.questionnaire(),
       waveform: this.waveform.slice(-200),
+      motionSeries: this.motionSeries.slice(-200),
       interpretation: interpreted.interpretation,
       riskPercent: interpreted.riskPercent,
       normalityPercent: interpreted.normalityPercent,
@@ -542,6 +578,37 @@ export class RespiratoryVoiceComponent implements OnDestroy {
     };
 
     return metrics;
+  }
+
+  waveformPoints(data: number[]): string {
+    if (!data.length) return '0,60 300,60';
+    return data.slice(-120).map((v, i, arr) => `${(i / Math.max(1, arr.length - 1)) * 300},${110 - v}`).join(' ');
+  }
+
+  motionAreaPath(data: number[]): string {
+    if (!data.length) return 'M0,110 L300,110 Z';
+    const pts = data.slice(-120).map((v, i, arr) => `${(i / Math.max(1, arr.length - 1)) * 300},${110 - v}`);
+    return `M0,110 L${pts.join(' L')} L300,110 Z`;
+  }
+
+  semiGaugeBackground(percent: number): string {
+    return `conic-gradient(from 180deg, #10b981 ${percent * 1.8}deg, #e5e7eb ${percent * 1.8}deg 180deg)`;
+  }
+
+  timelinePoints(): string {
+    const pts = this.sessions().slice(0, 10).reverse();
+    if (!pts.length) return '0,100 420,100';
+    return pts.map((s, i) => `${(i / Math.max(1, pts.length - 1)) * 420},${105 - s.riskPercent}`).join(' ');
+  }
+
+  stackedComparison(metrics: RespiratoryVoiceMetrics) {
+    const previous = this.sessions().find((s) => s.id !== this.latestSession()?.id);
+    const prev = previous?.metrics;
+    return [
+      { label: 'Respirator barqarorlik', current: metrics.overallRespiratoryStability, previous: prev?.overallRespiratoryStability ?? metrics.overallRespiratoryStability },
+      { label: 'Funksional recovery', current: metrics.overallFunctionalRecovery, previous: prev?.overallFunctionalRecovery ?? metrics.overallFunctionalRecovery },
+      { label: 'Speech-breath', current: metrics.overallSpeechBreathEfficiency, previous: prev?.overallSpeechBreathEfficiency ?? metrics.overallSpeechBreathEfficiency }
+    ];
   }
 
   lineChartPoints(): string {

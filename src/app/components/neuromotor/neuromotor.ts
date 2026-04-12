@@ -210,7 +210,7 @@ const HAND_CONNECTIONS: [number, number][] = [
 
           <div class="mt-4 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
             <p class="text-xs uppercase font-black text-emerald-700">AI skrining tahlili</p>
-            <p class="text-sm text-medical-text">Bu mustaqil tashxis emas. Xavf foizi: <strong>{{ aiRiskPercent() }}%</strong> ({{ aiSource() }})</p>
+            <p class="text-sm text-medical-text">Bu mustaqil tashxis emas. Xavf foizi: <strong>{{ aiRiskPercent() }}%</strong> · {{ aiLabel() }}</p>
             <p class="text-xs text-medical-text-muted mt-1">Natijalar faqat skrining va kuzatuv uchun mo‘ljallangan. Aniq tashxis uchun nevrolog ko‘rigi zarur.</p>
           </div>
 
@@ -259,6 +259,43 @@ const HAND_CONNECTIONS: [number, number][] = [
               </div>
             </div>
           }
+
+
+
+          <div class="mt-5 grid xl:grid-cols-2 gap-4">
+            <div class="p-4 border rounded-2xl bg-slate-50">
+              <p class="text-xs font-black">Motor domain radar (bar uslub)</p>
+              @for (row of neuromotorRadarRows(); track row.label) {
+                <div class="mt-2">
+                  <div class="flex justify-between text-xs"><span>{{ row.label }}</span><span>{{ row.value }}</span></div>
+                  <div class="h-2 rounded-full bg-slate-200"><div class="h-2 rounded-full bg-indigo-600" [style.width.%]="row.value"></div></div>
+                </div>
+              }
+            </div>
+            <div class="p-4 border rounded-2xl bg-slate-50">
+              <p class="text-xs font-black">Normaga yaqinlik gauge</p>
+              <div class="mt-4 h-16 rounded-t-full" [style.background]="semiGauge(overallNormProximity())"></div>
+              <p class="text-center text-sm font-black mt-1">{{ overallNormProximity() }}%</p>
+              <p class="text-xs text-medical-text-muted mt-2">Asimmetriya: {{ asymmetryScore() }} · Silliqlik: {{ movementSmoothness() }}</p>
+            </div>
+            <div class="p-4 border rounded-2xl bg-slate-50">
+              <p class="text-xs font-black">Testlar bo‘yicha bar chart</p>
+              @for (r of testBars(); track r.label) {
+                <div class="mt-2">
+                  <div class="flex justify-between text-xs"><span>{{ r.label }}</span><span>{{ r.value }}</span></div>
+                  <div class="h-2 rounded-full bg-slate-200"><div class="h-2 rounded-full bg-emerald-500" [style.width.%]="r.value"></div></div>
+                </div>
+              }
+            </div>
+            <div class="p-4 border rounded-2xl bg-slate-50">
+              <p class="text-xs font-black">Irregularity heatmap</p>
+              <div class="grid grid-cols-7 gap-1 mt-2">
+                @for (cell of irregularityHeatmap(); track $index) {
+                  <div class="h-6 rounded" [style.background]="heatColor(cell)" [title]="cell"></div>
+                }
+              </div>
+            </div>
+          </div>
 
           <div class="mt-4 overflow-x-auto">
             <table class="w-full text-sm">
@@ -622,6 +659,61 @@ export class NeuroMotorComponent implements AfterViewInit, OnDestroy {
     if (latest) {
       this.latestResult.set({ ...latest, interpretation: out.interpretation });
     }
+  }
+
+
+  aiLabel() {
+    return this.aiSource() === 'ai' ? 'Kengaytirilgan AI tahlili' : 'Lokal tahlil';
+  }
+
+  neuromotorRadarRows() {
+    const o = this.overall();
+    return [
+      { label: 'Barqarorlik', value: o.stability },
+      { label: 'Koordinatsiya', value: o.coordination },
+      { label: 'Aniqlik', value: o.accuracy },
+      { label: 'Ritm', value: o.rhythm },
+      { label: 'Fine motor', value: Math.round((o.accuracy + o.coordination) / 2) }
+    ];
+  }
+
+  overallNormProximity() {
+    const o = this.overall();
+    return Math.max(1, Math.min(99, Math.round((o.stability * 0.35) + (o.coordination * 0.35) + (o.accuracy * 0.3))));
+  }
+
+  asymmetryScore() {
+    const left = this.testResults().filter((x) => x.hand === 'left');
+    const right = this.testResults().filter((x) => x.hand === 'right');
+    if (!left.length || !right.length) return 0;
+    const l = left.reduce((s, r) => s + r.summary.aniqlik, 0) / left.length;
+    const r = right.reduce((s, r2) => s + r2.summary.aniqlik, 0) / right.length;
+    return Math.round(Math.abs(l - r));
+  }
+
+  movementSmoothness() {
+    const tests = this.testResults();
+    if (!tests.length) return 50;
+    const variance = tests.reduce((s, r) => s + Math.abs(r.summary.ritm_muntazamligi - r.summary.harakat_barqarorligi), 0) / tests.length;
+    return Math.max(0, Math.min(100, Math.round(100 - variance)));
+  }
+
+  semiGauge(percent: number) {
+    return `conic-gradient(from 180deg, #22c55e ${percent * 1.8}deg, #e5e7eb ${percent * 1.8}deg 180deg)`;
+  }
+
+  testBars() {
+    return this.testResults().map((r) => ({ label: this.testName(r.test), value: Math.round((r.summary.harakat_tezligi + r.summary.harakat_barqarorligi + r.summary.aniqlik) / 3) }));
+  }
+
+  irregularityHeatmap() {
+    return this.testResults().map((r) => Math.max(0, Math.min(100, 100 - r.summary.ritm_muntazamligi)));
+  }
+
+  heatColor(value: number) {
+    const red = Math.min(255, Math.round(80 + value * 1.7));
+    const green = Math.min(255, Math.round(220 - value * 1.6));
+    return `rgb(${red}, ${green}, 120)`;
   }
 
   trend(metric: 'stability' | 'speed' | 'rhythm') {
