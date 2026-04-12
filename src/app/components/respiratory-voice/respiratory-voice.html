@@ -1,0 +1,151 @@
+<div class="max-w-6xl mx-auto space-y-6">
+  <div class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm">
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-medical-text">Nafas va Ovoz Tahlili</h1>
+        <p class="text-sm text-medical-text-muted mt-1">Bu modul skrining va kuzatuv uchun mo‘ljallangan. Bu mustaqil tashxis emas.</p>
+      </div>
+      <button (click)="openHistory()" class="px-4 py-2 rounded-xl bg-slate-100 text-medical-text text-sm font-semibold">Kuzatuv</button>
+    </div>
+  </div>
+
+  <div *ngIf="currentView() === 'intro'" class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm space-y-4">
+    <h2 class="font-bold text-lg">Bu modul qanday ishlaydi?</h2>
+    <ul class="list-disc pl-5 text-sm text-medical-text-muted space-y-1">
+      <li>Kamera + mikrofon + simptom so‘rovnomasi yordamida skrining qiladi.</li>
+      <li>Mahalliy ko‘rsatkichlar hisoblanadi, so‘ng Gemini interpretatsiya qatlami qo‘llanadi.</li>
+      <li>Natija ehtimoliy yo‘nalish, xavf darajasi va follow-up tavsiyalarini beradi.</li>
+    </ul>
+    <button (click)="startSystemCheck()" class="px-4 py-2 rounded-xl bg-medical-primary text-white font-semibold">Tizimni sinab ko‘rish</button>
+  </div>
+
+  <div *ngIf="currentView() === 'check'" class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm space-y-4">
+    <h2 class="font-bold text-lg">Tizimni sinab ko‘rish</h2>
+    <p class="text-sm text-medical-text-muted">{{ liveGuidance() }}</p>
+    <p *ngIf="mediaError()" class="text-sm text-red-600">{{ mediaError() }}</p>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded-xl border border-medical-border p-3">
+        <video #previewVideo class="w-full rounded-lg bg-black/90" autoplay muted playsinline></video>
+        <canvas #analysisCanvas class="hidden"></canvas>
+      </div>
+      <div class="space-y-2 text-sm">
+        <p>📷 Kamera: <strong>{{ cameraOk() ? 'Ulandi' : 'Aniqlanmadi' }}</strong></p>
+        <p>🎤 Mikrofon: <strong>{{ microphoneOk() ? 'Ulandi' : 'Aniqlanmadi' }}</strong></p>
+        <p>💡 Yorug‘lik: <strong>{{ lightingOk() ? 'Yetarli' : 'Past' }}</strong></p>
+        <p>🔊 Audio signal: <strong>{{ audioSignalOk() ? 'Yaxshi' : 'Past' }}</strong></p>
+      </div>
+    </div>
+
+    <button (click)="goToStart()" [disabled]="!cameraOk() || !microphoneOk()" class="px-4 py-2 rounded-xl bg-medical-primary text-white font-semibold disabled:opacity-50">Testni boshlash</button>
+  </div>
+
+  <div *ngIf="currentView() === 'start'" class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm space-y-5">
+    <h2 class="font-bold text-lg">Testni boshlash</h2>
+    <p class="text-sm text-medical-text-muted">Har bir test oldidan ko‘rsatmalarni o‘qing. Xatolikni kamaytirish uchun kamera va mikrofonga yaqin bo‘ling.</p>
+
+    <div class="grid md:grid-cols-2 gap-4 text-sm">
+      <label class="space-y-1">Yo‘tal (0-5)
+        <input type="range" min="0" max="5" [ngModel]="questionnaire().cough" (ngModelChange)="updateSeverity('cough', $event)" class="w-full">
+      </label>
+      <label class="space-y-1">Balg‘am (0-5)
+        <input type="range" min="0" max="5" [ngModel]="questionnaire().sputum" (ngModelChange)="updateSeverity('sputum', $event)" class="w-full">
+      </label>
+      <label class="space-y-1">Isitma (0-5)
+        <input type="range" min="0" max="5" [ngModel]="questionnaire().fever" (ngModelChange)="updateSeverity('fever', $event)" class="w-full">
+      </label>
+      <label class="space-y-1">Nafas qisishi (0-5)
+        <input type="range" min="0" max="5" [ngModel]="questionnaire().dyspnea" (ngModelChange)="updateSeverity('dyspnea', $event)" class="w-full">
+      </label>
+      <label class="space-y-1">Ko‘krak og‘riq (0-5)
+        <input type="range" min="0" max="5" [ngModel]="questionnaire().chestPain" (ngModelChange)="updateSeverity('chestPain', $event)" class="w-full">
+      </label>
+      <label class="space-y-1">Belgilar davomiyligi (kun)
+        <input type="number" min="0" [ngModel]="questionnaire().symptomDurationDays" (ngModelChange)="updateBool('symptomDurationDays', $event)" class="w-full rounded-lg border border-medical-border px-2 py-1">
+      </label>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-3 text-sm">
+      <label><input type="checkbox" [ngModel]="questionnaire().asthmaHistory" (ngModelChange)="updateBool('asthmaHistory', $event)"> Astma tarixi</label>
+      <label><input type="checkbox" [ngModel]="questionnaire().allergyHistory" (ngModelChange)="updateBool('allergyHistory', $event)"> Allergiya tarixi</label>
+      <label><input type="checkbox" [ngModel]="questionnaire().smokingHistory" (ngModelChange)="updateBool('smokingHistory', $event)"> Chekish tarixi</label>
+      <label><input type="checkbox" [ngModel]="questionnaire().recentViralIllness" (ngModelChange)="updateBool('recentViralIllness', $event)"> Yaqinda virusli kasallik</label>
+      <label><input type="checkbox" [ngModel]="questionnaire().exertionalWorsening" (ngModelChange)="updateBool('exertionalWorsening', $event)"> Harakatda yomonlashadi</label>
+      <label><input type="checkbox" [ngModel]="questionnaire().nighttimeSymptoms" (ngModelChange)="updateBool('nighttimeSymptoms', $event)"> Tungi simptomlar</label>
+    </div>
+
+    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm">
+      <p class="font-semibold mb-2">Speech reading matni:</p>
+      <p>{{ speechText }}</p>
+    </div>
+
+    <button (click)="beginTests()" class="px-4 py-2 rounded-xl bg-medical-primary text-white font-semibold">Testni boshlash</button>
+  </div>
+
+  <div *ngIf="currentView() === 'running'" class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm space-y-4">
+    <h2 class="font-bold text-lg">Test bajarilishi</h2>
+    <p class="text-sm">Joriy bosqich: <strong>{{ runState() }}</strong></p>
+    <p class="text-sm text-medical-text-muted">{{ liveGuidance() }}</p>
+    <p class="text-sm">Qolgan vaqt: {{ countdown() }} soniya</p>
+    <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+      <div class="h-full bg-medical-primary" [style.width.%]="progress()"></div>
+    </div>
+    <button *ngIf="runState() === 'cough'" (click)="registerCough()" class="px-4 py-2 rounded-xl bg-amber-500 text-white font-semibold">Yo‘talni belgilash</button>
+    <p class="text-xs text-medical-text-muted">“Yuzingiz kamera ichida to‘liq ko‘rinsin”, “Nafasni tabiiy oling, majburlamang”, “Matnni odatdagi ovoz balandligida o‘qing”.</p>
+  </div>
+
+  <div *ngIf="currentView() === 'results' && result()" class="space-y-4">
+    <div class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm">
+      <h2 class="font-bold text-lg mb-1">Natijalar</h2>
+      <p class="text-xs text-medical-text-muted">{{ result()!.timestamp | date:'medium' }}</p>
+      <p *ngIf="interpreting()" class="text-sm text-medical-text-muted mt-2">Gemini interpretatsiyasi tayyorlanmoqda...</p>
+    </div>
+
+    <div class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm grid md:grid-cols-3 gap-3 text-sm">
+      <div><strong>Breathing Rate:</strong> {{ result()!.metrics.breathingRate }}</div>
+      <div><strong>Rhythm Variability:</strong> {{ result()!.metrics.breathingRhythmVariability }}</div>
+      <div><strong>Pause Frequency:</strong> {{ result()!.metrics.pauseFrequency }}</div>
+      <div><strong>Speech Interruptions:</strong> {{ result()!.metrics.speechBreathInterruptions }}</div>
+      <div><strong>Recovery Time:</strong> {{ result()!.metrics.recoveryTime }}s</div>
+      <div><strong>Respiratory Stability:</strong> {{ result()!.metrics.overallRespiratoryStability }}%</div>
+    </div>
+
+    <div class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm space-y-4">
+      <h3 class="font-semibold">1) Qisqa xulosa</h3>
+      <p class="text-sm">{{ result()!.interpretation.qisqaXulosa }}</p>
+      <h3 class="font-semibold">2) Topilgan belgilar</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.topilganBelgilar">{{ x }}</li></ul>
+      <h3 class="font-semibold">3) Nega tizim shunday xulosaga keldi?</h3>
+      <p class="text-sm">{{ result()!.interpretation.negaXulosa }}</p>
+      <h3 class="font-semibold">4-5) Mos yo‘nalishlar va sabablari</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.mosYonalislar">{{ x }}</li></ul>
+      <p class="text-sm">{{ result()!.interpretation.negaMos }}</p>
+      <h3 class="font-semibold">6-7) Xavf va barqarorlik</h3>
+      <p class="text-sm">{{ result()!.interpretation.xavfDarajasiFoiz }}</p>
+      <p class="text-sm">{{ result()!.interpretation.barqarorlikBahosi }}</p>
+      <h3 class="font-semibold">8) Chuqur tavsiyalar</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.chuqurTavsiyalar">{{ x }}</li></ul>
+      <h3 class="font-semibold">9) Uy kuzatuv</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.uyKuzatuv">{{ x }}</li></ul>
+      <h3 class="font-semibold">10) Recovery / follow-up rejasi</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.followUpReja">{{ x }}</li></ul>
+      <h3 class="font-semibold">11) Qachon shifokorga murojaat qilish kerak?</h3>
+      <ul class="list-disc pl-5 text-sm"><li *ngFor="let x of result()!.interpretation.qachonShifokor">{{ x }}</li></ul>
+      <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+        <p *ngFor="let d of result()!.interpretation.disclaimer">• {{ d }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="currentView() === 'history'" class="bg-white border border-medical-border rounded-2xl p-6 shadow-sm">
+    <h2 class="font-bold text-lg mb-4">Kuzatuv tarixi</h2>
+    <div *ngIf="!history().length" class="text-sm text-medical-text-muted">Hali tarix mavjud emas.</div>
+    <div *ngFor="let item of history()" class="border border-medical-border rounded-xl p-4 mb-3 flex items-center justify-between gap-3">
+      <div class="text-sm">
+        <p class="font-semibold">{{ item.timestamp | date:'medium' }}</p>
+        <p class="text-medical-text-muted">Xavf: {{ item.interpretation.xavfDarajasiFoiz }}</p>
+      </div>
+      <button (click)="loadHistoryItem(item)" class="px-3 py-2 rounded-lg bg-slate-100 text-xs">Ko‘rish</button>
+    </div>
+  </div>
+</div>
