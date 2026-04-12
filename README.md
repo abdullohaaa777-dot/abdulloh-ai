@@ -2,19 +2,51 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# Abdulloh AI — Run & Deploy
 
-This contains everything you need to run your app locally.
+## Local run
 
-View your app in AI Studio: https://ai.studio/apps/17a01f4c-674f-482a-9bd7-4a979ab54449
+**Prerequisites:** Node.js 20+
 
-## Run Locally
+1. Install deps:
+   ```bash
+   npm install
+   ```
+2. Set environment variables (local shell, `.env.local`, or Vercel project env):
+   - `GEMINI_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+3. Run app:
+   ```bash
+   npm run dev
+   ```
 
-**Prerequisites:**  Node.js
+## Production build (Vercel compatible)
 
+```bash
+npm run build
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+The build script forwards `GEMINI_API_KEY`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY` via Angular `--define` for production builds.
+
+## Supabase migration
+
+Run `supabase_schema.sql` in **Supabase SQL Editor** (same project used by frontend):
+
+1. Open Supabase Dashboard → SQL Editor.
+2. Paste contents of `supabase_schema.sql`.
+3. Run query.
+
+The migration is idempotent (`CREATE TABLE IF NOT EXISTS` and `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) so it is safe for existing projects.
+
+## Post-deploy checklist
+
+After deploy, verify:
+
+1. Sign in / auth works.
+2. New case save works (and persists).
+3. Case detail route opens via `/case/:id`.
+4. AI analysis works (or returns controlled error if API key missing).
+5. Dermatology AI flow does not crash when key is missing.
+6. File upload/delete works in `medical-uploads` bucket.
+7. Case delete removes DB rows and associated files.
