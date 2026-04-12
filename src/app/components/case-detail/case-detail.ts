@@ -1226,7 +1226,12 @@ export class CaseDetailComponent implements OnInit {
     const file = element.files?.[0];
     const data = this.caseData();
     if (file && data) {
-      await this.supabase.uploadFile(data.id, file);
+      const { error } = await this.supabase.uploadFile(data.id, file);
+      if (error) {
+        console.error('Upload error:', error);
+        alert(`Fayl yuklashda xatolik: ${error.message}`);
+        return;
+      }
       await this.loadCase(data.id);
     }
   }
@@ -1255,6 +1260,8 @@ export class CaseDetailComponent implements OnInit {
       }
     } catch (e) {
       console.error(e);
+      const errorMsg = e instanceof Error ? e.message : 'AI javobida xatolik yuz berdi.';
+      await this.supabase.addChatMessage(data.id, 'assistant', `Xatolik: ${errorMsg}`);
     }
     this.chatLoading.set(false);
   }

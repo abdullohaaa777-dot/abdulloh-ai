@@ -20,11 +20,10 @@ export class SupabaseService {
 
     try {
       if (this.isConfigured()) {
-        this.supabase.auth.onAuthStateChange((event, session) => {
+        this.supabase.auth.onAuthStateChange((_event, session) => {
           this.user.set(session?.user ?? null);
         });
       } else {
-        // Check for demo user in localStorage
         const demoUser = localStorage.getItem('demo-user');
         if (demoUser) {
           this.user.set(JSON.parse(demoUser));
@@ -36,7 +35,9 @@ export class SupabaseService {
   }
 
   public isConfigured(): boolean {
-    return !!(typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && SUPABASE_URL.startsWith('http'));
+    const hasUrl = typeof SUPABASE_URL !== 'undefined' && !!SUPABASE_URL && SUPABASE_URL.startsWith('http');
+    const hasAnonKey = typeof SUPABASE_ANON_KEY !== 'undefined' && !!SUPABASE_ANON_KEY;
+    return !!(hasUrl && hasAnonKey);
   }
 
   private get isDemoMode(): boolean {
@@ -46,13 +47,29 @@ export class SupabaseService {
   private get supabase(): SupabaseClient {
     if (!this._supabase) {
       if (this.isDemoMode) {
-        // Return a proxy or dummy client to avoid crashes, 
-        // but we'll handle demo mode logic in methods
         return {} as unknown as SupabaseClient;
       }
       this._supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
     return this._supabase;
+  }
+
+  private mapDbError(action: string, error: unknown): { message: string } {
+    const message = typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: string }).message)
+      : `Unknown error during ${action}`;
+
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code: string }).code)
+      : '';
+
+    const hint = code === '42703' || code === 'PGRST204'
+      ? ' (Supabase schema frontend yuborayotgan maydonlar bilan mos emas. Migratsiyani ishga tushiring.)'
+      : '';
+
+    const mapped = { message: `${message}${hint}` };
+    console.error(`[Supabase] ${action} failed:`, error);
+    return mapped;
   }
 
   get client() {
@@ -102,18 +119,18 @@ export class SupabaseService {
       .from('cases')
       .select('*')
       .order('created_at', { ascending: false });
-    return { data, error };
+    return { data, error: error ? this.mapDbError('getCases', error) : null };
   }
 
   async createCase(caseData: Partial<CaseData>) {
     if (this.isDemoMode) {
       if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
       const cases = JSON.parse(localStorage.getItem('demo-cases') || '[]');
-      const newCase = { 
-        ...caseData, 
-        id: crypto.randomUUID(), 
+      const newCase = {
+        ...caseData,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-        user_id: 'demo-user' 
+        user_id: 'demo-user'
       };
       cases.push(newCase);
       localStorage.setItem('demo-cases', JSON.stringify(cases));
@@ -124,7 +141,8 @@ export class SupabaseService {
       .insert([{ ...caseData, user_id: this.user()?.id }])
       .select()
       .single();
-    return { data, error };
+
+    return { data, error: error ? this.mapDbError('createCase', error) : null };
   }
 
   async updateCase(id: string, caseData: Partial<CaseData>) {
@@ -133,7 +151,7 @@ export class SupabaseService {
       const cases = JSON.parse(localStorage.getItem('demo-cases') || '[]');
       const index = cases.findIndex((c: CaseData) => c.id === id);
       if (index === -1) return { data: null, error: { message: 'Not found' } };
-      
+
       cases[index] = { ...cases[index], ...caseData };
       localStorage.setItem('demo-cases', JSON.stringify(cases));
       return { data: cases[index], error: null };
@@ -144,7 +162,7 @@ export class SupabaseService {
       .eq('id', id)
       .select()
       .single();
-    return { data, error };
+    return { data, error: error ? this.mapDbError('updateCase', error) : null };
   }
 
   async getCaseById(id: string) {
@@ -153,10 +171,10 @@ export class SupabaseService {
       const cases = JSON.parse(localStorage.getItem('demo-cases') || '[]');
       const foundCase = cases.find((c: CaseData) => c.id === id);
       if (!foundCase) return { data: null, error: { message: 'Not found' } };
-      
+
       const uploads = JSON.parse(localStorage.getItem(`demo-uploads-${id}`) || '[]');
       const chats = JSON.parse(localStorage.getItem(`demo-chats-${id}`) || '[]');
-      
+
       return { data: { ...foundCase, uploads, chats }, error: null };
     }
     const { data, error } = await this.supabase
@@ -164,16 +182,16 @@ export class SupabaseService {
       .select('*, uploads(*), chats(*)')
       .eq('id', id)
       .single();
-    return { data, error };
+    return { data, error: error ? this.mapDbError('getCaseById', error) : null };
   }
 
   async uploadFile(caseId: string, file: File) {
     if (this.isDemoMode) {
       if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
       const uploads = JSON.parse(localStorage.getItem(`demo-uploads-${caseId}`) || '[]');
-      const newUpload = { 
-        id: crypto.randomUUID(), 
-        case_id: caseId, 
+      const newUpload = {
+        id: crypto.randomUUID(),
+        case_id: caseId,
         file_path: URL.createObjectURL(file),
         file_name: file.name,
         created_at: new Date().toISOString()
@@ -182,28 +200,29 @@ export class SupabaseService {
       localStorage.setItem(`demo-uploads-${caseId}`, JSON.stringify(uploads));
       return { data: newUpload, error: null };
     }
+
     const filePath = `${this.user()?.id}/${caseId}/${Date.now()}_${file.name}`;
     const { data, error: uploadError } = await this.supabase.storage
       .from('medical-uploads')
       .upload(filePath, file);
 
-    if (uploadError) return { error: uploadError };
+    if (uploadError) return { error: this.mapDbError('uploadFile(storage)', uploadError) };
 
     const { error: dbError } = await this.supabase
       .from('uploads')
-      .insert([{ case_id: caseId, file_path: filePath }]);
+      .insert([{ case_id: caseId, file_path: filePath, file_name: file.name }]);
 
-    return { data, error: dbError };
+    return { data, error: dbError ? this.mapDbError('uploadFile(db)', dbError) : null };
   }
 
   async addChatMessage(caseId: string, role: string, message: string) {
     if (this.isDemoMode) {
       if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
       const chats = JSON.parse(localStorage.getItem(`demo-chats-${caseId}`) || '[]');
-      const newChat = { 
-        id: crypto.randomUUID(), 
-        case_id: caseId, 
-        role, 
+      const newChat = {
+        id: crypto.randomUUID(),
+        case_id: caseId,
+        role,
         message,
         created_at: new Date().toISOString()
       };
@@ -216,7 +235,7 @@ export class SupabaseService {
       .insert([{ case_id: caseId, role, message }])
       .select()
       .single();
-    return { data, error };
+    return { data, error: error ? this.mapDbError('addChatMessage', error) : null };
   }
 
   async deleteCase(id: string) {
@@ -225,29 +244,59 @@ export class SupabaseService {
       const cases = JSON.parse(localStorage.getItem('demo-cases') || '[]');
       const filteredCases = cases.filter((c: CaseData) => c.id !== id);
       localStorage.setItem('demo-cases', JSON.stringify(filteredCases));
-      
-      // Clean up associated data
+
       localStorage.removeItem(`demo-uploads-${id}`);
       localStorage.removeItem(`demo-chats-${id}`);
-      
+
       return { error: null };
     }
 
-    // Delete related records first if cascade is not set up
-    await this.supabase.from('chats').delete().eq('case_id', id);
-    await this.supabase.from('uploads').delete().eq('case_id', id);
+    const userId = this.user()?.id;
+    const caseFolderPath = userId ? `${userId}/${id}` : id;
 
-    // Delete files from storage
-    const { data: files } = await this.supabase.storage.from('medical-docs').list(id);
-    if (files && files.length > 0) {
-      const filesToDelete = files.map(f => `${id}/${f.name}`);
-      await this.supabase.storage.from('medical-docs').remove(filesToDelete);
+    const { data: uploads, error: uploadsReadError } = await this.supabase
+      .from('uploads')
+      .select('file_path')
+      .eq('case_id', id);
+    if (uploadsReadError) {
+      return { error: this.mapDbError('deleteCase(read uploads)', uploadsReadError) };
     }
+
+    let filesToDelete = (uploads || []).map((item) => item.file_path).filter(Boolean);
+
+    if (!filesToDelete.length) {
+      const { data: listedFiles, error: listError } = await this.supabase.storage
+        .from('medical-uploads')
+        .list(caseFolderPath);
+
+      if (listError) {
+        return { error: this.mapDbError('deleteCase(list storage)', listError) };
+      }
+
+      filesToDelete = (listedFiles || []).map(file => `${caseFolderPath}/${file.name}`);
+    }
+
+    if (filesToDelete.length > 0) {
+      const { error: storageDeleteError } = await this.supabase.storage
+        .from('medical-uploads')
+        .remove(filesToDelete);
+
+      if (storageDeleteError) {
+        return { error: this.mapDbError('deleteCase(remove storage)', storageDeleteError) };
+      }
+    }
+
+    const { error: chatsError } = await this.supabase.from('chats').delete().eq('case_id', id);
+    if (chatsError) return { error: this.mapDbError('deleteCase(chats)', chatsError) };
+
+    const { error: uploadsError } = await this.supabase.from('uploads').delete().eq('case_id', id);
+    if (uploadsError) return { error: this.mapDbError('deleteCase(uploads)', uploadsError) };
 
     const { error } = await this.supabase
       .from('cases')
       .delete()
       .eq('id', id);
-    return { error };
+
+    return { error: error ? this.mapDbError('deleteCase(case)', error) : null };
   }
 }
