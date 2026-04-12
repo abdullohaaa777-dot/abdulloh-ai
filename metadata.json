@@ -1,6 +1,6 @@
 {
-  "name": "My App",
-  "description": "A brief description of what the app does",
+  "name": "Abdulloh AI",
+  "description": "Abdulloh AI tibbiy skrining va kuzatuv platformasi",
   "requestFramePermissions": [
     "camera",
     "microphone"

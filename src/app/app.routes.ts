@@ -13,6 +13,7 @@ import { ScenarioSimulatorComponent } from './components/scenario-simulator/scen
 import { TreatmentAdherenceComponent } from './components/treatment-adherence/treatment-adherence';
 import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-ai';
 import { NeuroMotorComponent } from './components/neuromotor/neuromotor';
+import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -24,6 +25,7 @@ export const routes: Routes = [
       { path: 'digital-twin', component: DigitalTwinComponent },
       { path: 'dermatology-ai', component: DermatologyAIComponent },
       { path: 'neuromotor', component: NeuroMotorComponent },
+      { path: 'nafas-ovoz', component: RespiratoryVoiceComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },
