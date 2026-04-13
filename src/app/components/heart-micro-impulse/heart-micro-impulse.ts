@@ -186,6 +186,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   urgency = signal(0);
   isReady = signal(false);
   readinessWarnings = signal<string[]>(['Natija chiqarish uchun signal hali yetarli emas']);
+  overlayTracked = signal(false);
   latest = signal<HeartMicroImpulseSession | null>(null);
   pipelineActive = signal(false);
   activePipelineStep = signal('');
@@ -388,6 +389,30 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const soft = ok ? 'rgba(34,197,94,0.14)' : 'rgba(249,115,22,0.14)';
 
     const pose = this.estimateTorsoPose();
+    const tracked = pose.confidence >= 0.56;
+    this.overlayTracked.set(tracked);
+
+    if (!tracked) {
+      // Stage 1: search/detect mode – full anatomical overlayni ko‘rsatmaymiz
+      ctx.strokeStyle = 'rgba(148,163,184,0.75)';
+      ctx.lineWidth = 1.5;
+      const boxW = w * 0.42;
+      const boxH = h * 0.44;
+      const boxX = (w - boxW) / 2;
+      const boxY = h * 0.34;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(99,102,241,0.08)';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Target zona qidirilmoqda...', boxX + 8, boxY - 8);
+      ctx.fillText('Ko‘krak sohasi hali to‘liq ko‘rinmayapti', boxX + 8, boxY + boxH + 16);
+      return;
+    }
+
+    // Stage 2/3: tracked mode
     this.torsoPose.cx = this.torsoPose.cx * 0.82 + pose.cx * 0.18;
     this.torsoPose.cy = this.torsoPose.cy * 0.82 + pose.cy * 0.18;
     this.torsoPose.scale = this.torsoPose.scale * 0.84 + pose.scale * 0.16;
@@ -492,13 +517,13 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     ctx.fillText(ok ? 'Anatomik zona mos: ko‘krak sohasi to‘g‘ri' : 'Ko‘krak markaziga yaqinlashing va barqaror turing', cx - thoraxHalfW, thoraxTop - 8);
   }
 
-  private estimateTorsoPose(): { cx: number; cy: number; scale: number; tilt: number } {
+  private estimateTorsoPose(): { cx: number; cy: number; scale: number; tilt: number; confidence: number } {
     const video = this.videoRef?.nativeElement;
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return this.torsoPose;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return { ...this.torsoPose, confidence: 0 };
     const c = document.createElement('canvas');
     c.width = 96; c.height = 72;
     const ctx = c.getContext('2d');
-    if (!ctx) return this.torsoPose;
+    if (!ctx) return { ...this.torsoPose, confidence: 0 };
     ctx.drawImage(video, 0, 0, c.width, c.height);
     const data = ctx.getImageData(0, 0, c.width, c.height).data;
 
@@ -523,14 +548,17 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       }
     }
 
-    if (count < 220) return this.torsoPose;
+    if (count < 220) return { ...this.torsoPose, confidence: 0.2 };
     const cx = sumX / count / c.width;
     const cy = sumY / count / c.height;
     const bw = Math.max(1, maxX - minX);
     const bh = Math.max(1, maxY - minY);
     const scale = Math.max(0.72, Math.min(1.28, (bw / c.width) * 1.9));
     const tilt = (rightMass - leftMass) / Math.max(1, count);
-    return { cx, cy, scale, tilt };
+    const occupancy = count / (c.width * c.height);
+    const centered = 1 - Math.min(1, Math.abs(cx - 0.5) * 2.2) - Math.min(1, Math.abs(cy - 0.57) * 2.4);
+    const confidence = Math.max(0, Math.min(1, occupancy * 2.4 + centered * 0.35));
+    return { cx, cy, scale, tilt, confidence };
   }
 
   private updateGuidance(brightness: number, motion: number, mic: number) {
@@ -542,6 +570,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const rotated = Math.abs(p.tilt) > 0.08;
     const unstable = motion > 45;
     const orientationWrong = this.isPreviewMirrored ? p.tilt < -0.12 : p.tilt > 0.12;
+    const trackingWeak = !this.overlayTracked();
 
     const warnings: string[] = [];
     if (brightness < 45) warnings.push('Yorug‘lik yetarli emas');
@@ -553,6 +582,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     if (rotated) warnings.push('Tana juda burilgan');
     if (orientationWrong) warnings.push('Chap/o‘ng yo‘nalish noto‘g‘ri');
     if (unstable) warnings.push('Foydalanuvchi ko‘p harakatlanyapti, signal beqaror');
+    if (trackingWeak) warnings.push('Ko‘krak sohasi aniqlanmoqda, target zona qidirilmoqda');
 
     const readinessScore =
       (offCenter ? 0 : 18) +
@@ -562,7 +592,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       (brightness >= 45 ? 12 : 0) +
       (mic >= 8 ? 12 : 0) +
       (motion <= 45 ? 16 : 0);
-    const ready = readinessScore >= 78 && this.signalQuality() >= 62 && this.confidence() >= 58;
+    const ready = !trackingWeak && readinessScore >= 78 && this.signalQuality() >= 62 && this.confidence() >= 58;
     this.isReady.set(ready);
     this.readinessWarnings.set(ready
       ? ['Signal to‘g‘ri', 'Natija chiqarish uchun yetarli', 'Testni boshlang']
