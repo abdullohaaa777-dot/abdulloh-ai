@@ -366,26 +366,104 @@ export class HeartMicroImpulseComponent implements OnDestroy {
 
     const quality = this.signalQuality();
     const ok = quality >= 65;
-    ctx.strokeStyle = ok ? '#22c55e' : '#f97316';
+    const accent = ok ? '#22c55e' : '#f97316';
+    const soft = ok ? 'rgba(34,197,94,0.14)' : 'rgba(249,115,22,0.14)';
+
+    const cx = w / 2;
+    const neckY = h * 0.26;
+    const shoulderY = h * 0.35;
+    const thoraxTop = h * 0.35;
+    const thoraxBottom = h * 0.83;
+    const thoraxHalfW = w * 0.2;
+
+    // outer thorax contour
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 2;
-
-    // chest guidance overlay
-    const chestW = w * 0.38;
-    const chestH = h * 0.42;
-    const chestX = (w - chestW) / 2;
-    const chestY = h * 0.36;
-    ctx.strokeRect(chestX, chestY, chestW, chestH);
-    ctx.fillStyle = ok ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)';
-    ctx.fillRect(chestX, chestY, chestW, chestH);
-
-    // neck support overlay
     ctx.beginPath();
-    ctx.ellipse(w / 2, h * 0.28, w * 0.1, h * 0.09, 0, 0, Math.PI * 2);
+    ctx.moveTo(cx - thoraxHalfW * 0.85, shoulderY);
+    ctx.quadraticCurveTo(cx - thoraxHalfW * 1.18, h * 0.48, cx - thoraxHalfW * 0.78, thoraxBottom);
+    ctx.quadraticCurveTo(cx, h * 0.9, cx + thoraxHalfW * 0.78, thoraxBottom);
+    ctx.quadraticCurveTo(cx + thoraxHalfW * 1.18, h * 0.48, cx + thoraxHalfW * 0.85, shoulderY);
     ctx.stroke();
 
+    // subtle fill for target framing zone
+    ctx.fillStyle = soft;
+    ctx.beginPath();
+    ctx.moveTo(cx - thoraxHalfW * 0.8, thoraxTop);
+    ctx.quadraticCurveTo(cx - thoraxHalfW * 1.05, h * 0.5, cx - thoraxHalfW * 0.72, thoraxBottom * 0.98);
+    ctx.quadraticCurveTo(cx, h * 0.86, cx + thoraxHalfW * 0.72, thoraxBottom * 0.98);
+    ctx.quadraticCurveTo(cx + thoraxHalfW * 1.05, h * 0.5, cx + thoraxHalfW * 0.8, thoraxTop);
+    ctx.closePath();
+    ctx.fill();
+
+    // clavicles + neck base
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - thoraxHalfW * 0.58, shoulderY);
+    ctx.quadraticCurveTo(cx - thoraxHalfW * 0.2, neckY + h * 0.02, cx, neckY + h * 0.03);
+    ctx.quadraticCurveTo(cx + thoraxHalfW * 0.2, neckY + h * 0.02, cx + thoraxHalfW * 0.58, shoulderY);
+    ctx.stroke();
+
+    // sternum line + center axis
+    ctx.strokeStyle = '#94a3b8';
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx, shoulderY + 6);
+    ctx.lineTo(cx, thoraxBottom - 14);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // rib-cage hints (left/right arcs)
+    ctx.strokeStyle = 'rgba(148,163,184,0.72)';
+    ctx.lineWidth = 1.1;
+    for (let i = 0; i < 5; i++) {
+      const y = thoraxTop + (i + 1) * ((thoraxBottom - thoraxTop) / 6);
+      const spread = thoraxHalfW * (0.76 - i * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(cx - spread, y);
+      ctx.quadraticCurveTo(cx - spread * 0.25, y - 7, cx - thoraxHalfW * 0.08, y + 1);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + thoraxHalfW * 0.08, y + 1);
+      ctx.quadraticCurveTo(cx + spread * 0.25, y - 7, cx + spread, y);
+      ctx.stroke();
+    }
+
+    // shoulder balance lines
+    ctx.strokeStyle = 'rgba(148,163,184,0.7)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - thoraxHalfW * 1.05, shoulderY);
+    ctx.lineTo(cx - thoraxHalfW * 0.58, shoulderY);
+    ctx.moveTo(cx + thoraxHalfW * 0.58, shoulderY);
+    ctx.lineTo(cx + thoraxHalfW * 1.05, shoulderY);
+    ctx.stroke();
+
+    // precordial target zone (left chest emphasis)
+    const heartX = cx - thoraxHalfW * 0.24;
+    const heartY = h * 0.56;
+    const heartW = thoraxHalfW * 0.52;
+    const heartH = h * 0.19;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(heartX, heartY, heartW * 0.55, heartH * 0.5, -0.22, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = ok ? 'rgba(16,185,129,0.16)' : 'rgba(249,115,22,0.16)';
+    ctx.fill();
+
+    // neck support ring (secondary region)
+    ctx.strokeStyle = ok ? 'rgba(34,197,94,0.7)' : 'rgba(249,115,22,0.7)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(cx, neckY, thoraxHalfW * 0.32, h * 0.06, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // guidance text
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '12px sans-serif';
-    ctx.fillText(ok ? 'Zona to‘g‘ri' : 'Markazga yaqinlashing', chestX, chestY - 8);
+    ctx.fillText(ok ? 'Anatomik zona mos: ko‘krak sohasi to‘g‘ri' : 'Ko‘krak markaziga yaqinlashing va barqaror turing', cx - thoraxHalfW, thoraxTop - 8);
   }
 
   private sampleSignals() {
