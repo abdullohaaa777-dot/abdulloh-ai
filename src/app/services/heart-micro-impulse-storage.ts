@@ -1,0 +1,118 @@
+import { Injectable } from '@angular/core';
+
+export interface HeartMicroImpulseFeatures {
+  rhythmIrregularity: number;
+  motionEnergyAsymmetry: number;
+  acousticTurbulence: number;
+  electromechanicalTimingProxy: number;
+  cycleStabilityProxy: number;
+  chestMicroMotionAmplitude: number;
+  vibroacousticResonanceShift: number;
+  perfusionInstabilityProxy: number;
+  autonomicStressProxy: number;
+  signalQuality: number;
+  confidence: number;
+  urgency: number;
+}
+
+export interface DiagnosisProb {
+  name: string;
+  percent: number;
+}
+
+export interface HeartMicroImpulseNarrative {
+  qisqaXulosa: string;
+  bolishiMumkinHolatlar: string[];
+  otkirVaSurunkaliXavfBelgisi: string[];
+  shoshilinchXavfBelgisi: string[];
+  tavsiyaTekshiruvlar: string[];
+  patogenez: string[];
+  molekulyarMexanizm: string[];
+  biofizikMexanizm: string[];
+  biokimyoviyMexanizm: string[];
+  klinikInterpretatsiya: string[];
+  keyingiQadamlar: string[];
+  soddaIzoh: string[];
+  chuqurIlmiyIzoh: string[];
+  otaChuqurMexanistikIzoh: string[];
+}
+
+export interface HeartMicroImpulseSession {
+  id: string;
+  createdAt: string;
+  targetZone: 'chest' | 'neck' | 'face';
+  waveform: number[];
+  motionTrace: number[];
+  features: HeartMicroImpulseFeatures;
+  topDiagnoses: DiagnosisProb[];
+  mainDiagnosis: DiagnosisProb;
+  narrative: HeartMicroImpulseNarrative;
+}
+
+@Injectable({ providedIn: 'root' })
+export class HeartMicroImpulseStorageService {
+  private readonly key = 'heart-micro-impulse-sessions-v1';
+
+  list(): HeartMicroImpulseSession[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return (Array.isArray(parsed) ? parsed : []).map((x) => this.normalize(x));
+    } catch (error) {
+      console.error('Heart sessions parse error:', error);
+      return [];
+    }
+  }
+
+  save(session: HeartMicroImpulseSession) {
+    if (typeof window === 'undefined') return;
+    const list = this.list();
+    list.unshift(this.normalize(session));
+    localStorage.setItem(this.key, JSON.stringify(list.slice(0, 80)));
+  }
+
+  private normalize(input: unknown): HeartMicroImpulseSession {
+    const x = (input ?? {}) as Partial<HeartMicroImpulseSession>;
+    return {
+      id: x.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `heart-${Date.now()}`),
+      createdAt: x.createdAt || new Date().toISOString(),
+      targetZone: x.targetZone || 'chest',
+      waveform: Array.isArray(x.waveform) ? x.waveform : [],
+      motionTrace: Array.isArray(x.motionTrace) ? x.motionTrace : [],
+      features: {
+        rhythmIrregularity: x.features?.rhythmIrregularity ?? 40,
+        motionEnergyAsymmetry: x.features?.motionEnergyAsymmetry ?? 35,
+        acousticTurbulence: x.features?.acousticTurbulence ?? 30,
+        electromechanicalTimingProxy: x.features?.electromechanicalTimingProxy ?? 40,
+        cycleStabilityProxy: x.features?.cycleStabilityProxy ?? 60,
+        chestMicroMotionAmplitude: x.features?.chestMicroMotionAmplitude ?? 45,
+        vibroacousticResonanceShift: x.features?.vibroacousticResonanceShift ?? 30,
+        perfusionInstabilityProxy: x.features?.perfusionInstabilityProxy ?? 35,
+        autonomicStressProxy: x.features?.autonomicStressProxy ?? 40,
+        signalQuality: x.features?.signalQuality ?? 70,
+        confidence: x.features?.confidence ?? 70,
+        urgency: x.features?.urgency ?? 20
+      },
+      topDiagnoses: Array.isArray(x.topDiagnoses) ? x.topDiagnoses : [],
+      mainDiagnosis: x.mainDiagnosis || { name: 'Aritmiya yo‘nalishi', percent: 34 },
+      narrative: x.narrative || {
+        qisqaXulosa: 'Yurak mikro impuls skriningi yakunlandi.',
+        bolishiMumkinHolatlar: [],
+        otkirVaSurunkaliXavfBelgisi: [],
+        shoshilinchXavfBelgisi: [],
+        tavsiyaTekshiruvlar: [],
+        patogenez: [],
+        molekulyarMexanizm: [],
+        biofizikMexanizm: [],
+        biokimyoviyMexanizm: [],
+        klinikInterpretatsiya: [],
+        keyingiQadamlar: [],
+        soddaIzoh: [],
+        chuqurIlmiyIzoh: [],
+        otaChuqurMexanistikIzoh: []
+      }
+    };
+  }
+}

@@ -14,6 +14,7 @@ import { TreatmentAdherenceComponent } from './components/treatment-adherence/tr
 import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-ai';
 import { NeuroMotorComponent } from './components/neuromotor/neuromotor';
 import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
+import { HeartMicroImpulseComponent } from './components/heart-micro-impulse/heart-micro-impulse';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -26,6 +27,7 @@ export const routes: Routes = [
       { path: 'dermatology-ai', component: DermatologyAIComponent },
       { path: 'neuromotor', component: NeuroMotorComponent },
       { path: 'nafas-ovoz', component: RespiratoryVoiceComponent },
+      { path: 'yurak-mikro-impuls', component: HeartMicroImpulseComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },
