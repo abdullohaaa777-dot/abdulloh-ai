@@ -60,7 +60,16 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         <p class="text-sm">Signal sifati: <strong>{{ signalQuality() }}%</strong></p>
         <p class="text-sm">Ishonchlilik: <strong>{{ confidence() }}%</strong></p>
         <p class="text-sm">Shoshilinch indikator: <strong>{{ urgency() }}%</strong></p>
-        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording()">Avtomatik capture (25s)</button>
+        @if (isReady()) {
+          <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold">
+            Signal to‘g‘ri. Natija chiqarish uchun yetarli. Testni boshlang.
+          </div>
+        } @else {
+          <div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm">
+            @for (warn of readinessWarnings(); track warn) { <p>• {{ warn }}</p> }
+          </div>
+        }
+        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording() || !isReady()">Avtomatik capture (25s)</button>
       </div>
     </section>
 
@@ -173,6 +182,8 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   signalQuality = signal(0);
   confidence = signal(0);
   urgency = signal(0);
+  isReady = signal(false);
+  readinessWarnings = signal<string[]>(['Natija chiqarish uchun signal hali yetarli emas']);
   latest = signal<HeartMicroImpulseSession | null>(null);
   pipelineActive = signal(false);
   activePipelineStep = signal('');
@@ -197,6 +208,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   private waveform: number[] = [];
   private motionTrace: number[] = [];
   private torsoPose = { cx: 0.5, cy: 0.58, scale: 1, tilt: 0 };
+  private isPreviewMirrored = true;
 
   async initCapture() {
     try {
@@ -205,6 +217,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       this.setupAudio(this.stream);
       this.captureReady.set(true);
       this.hardwareInfo.set(navigator.userAgent.includes('Mobile') ? 'Telefon kamera + mikrofon' : 'Noutbuk webcam + mikrofon');
+      this.isPreviewMirrored = true;
       this.startQualityLoop();
       this.startOverlayLoop();
     } catch (error) {
@@ -450,7 +463,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     ctx.stroke();
 
     // precordial target zone (left chest emphasis)
-    const heartX = cx - thoraxHalfW * 0.24;
+    // preview mirrored bo‘lganda chap precordial hududni foydalanuvchi nuqtai nazariga mos akslantiramiz
+    const precordialSign = this.isPreviewMirrored ? 1 : -1;
+    const heartX = cx + precordialSign * thoraxHalfW * 0.24;
     const heartY = h * 0.56;
     const heartW = thoraxHalfW * 0.52;
     const heartH = h * 0.19;
@@ -524,16 +539,33 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const highLow = p.cy < 0.48 || p.cy > 0.67;
     const rotated = Math.abs(p.tilt) > 0.08;
     const unstable = motion > 45;
+    const orientationWrong = this.isPreviewMirrored ? p.tilt < -0.12 : p.tilt > 0.12;
 
-    if (brightness < 45) this.liveGuide.set('Yorug‘lik yetarli emas');
-    else if (mic < 8) this.liveGuide.set('Audio sifati past');
-    else if (tooFar) this.liveGuide.set('Kamera juda uzoq');
-    else if (tooNear) this.liveGuide.set('Kamera juda yaqin');
-    else if (offCenter) this.liveGuide.set('Ko‘krak sohasi markazda emas (chap/o‘ng siljish mavjud)');
-    else if (highLow) this.liveGuide.set('Target zona noto‘g‘ri (juda yuqori yoki past)');
-    else if (rotated) this.liveGuide.set('Tana burilgan, frontal holatga o‘ting');
-    else if (unstable) this.liveGuide.set('Foydalanuvchi juda ko‘p harakatlanyapti, signal beqaror');
-    else this.liveGuide.set('Pozitsiya to‘g‘ri, capture valid');
+    const warnings: string[] = [];
+    if (brightness < 45) warnings.push('Yorug‘lik yetarli emas');
+    if (mic < 8) warnings.push('Audio sifati past');
+    if (tooFar) warnings.push('Kamera juda uzoq');
+    if (tooNear) warnings.push('Kamera juda yaqin');
+    if (offCenter) warnings.push('Ko‘krak sohasi noto‘g‘ri joylashgan');
+    if (highLow) warnings.push('Target zona markazda emas');
+    if (rotated) warnings.push('Tana juda burilgan');
+    if (orientationWrong) warnings.push('Chap/o‘ng yo‘nalish noto‘g‘ri');
+    if (unstable) warnings.push('Foydalanuvchi ko‘p harakatlanyapti, signal beqaror');
+
+    const readinessScore =
+      (offCenter ? 0 : 18) +
+      (highLow ? 0 : 15) +
+      (tooFar || tooNear ? 0 : 14) +
+      (rotated || orientationWrong ? 0 : 13) +
+      (brightness >= 45 ? 12 : 0) +
+      (mic >= 8 ? 12 : 0) +
+      (motion <= 45 ? 16 : 0);
+    const ready = readinessScore >= 78 && this.signalQuality() >= 62 && this.confidence() >= 58;
+    this.isReady.set(ready);
+    this.readinessWarnings.set(ready ? ['Signal to‘g‘ri', 'Natija chiqarish uchun yetarli', 'Testni boshlang'] : [...warnings, 'Natija chiqarish uchun signal hali yetarli emas']);
+
+    if (ready) this.liveGuide.set('Signal to‘g‘ri. Natija chiqarish uchun yetarli. Testni boshlang');
+    else this.liveGuide.set(warnings[0] || 'Natija chiqarish uchun signal hali yetarli emas');
   }
 
   private sampleSignals() {
