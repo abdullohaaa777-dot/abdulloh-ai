@@ -192,9 +192,11 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   private audioData = new Uint8Array(256);
   private timer: number | null = null;
   private qcTimer: number | null = null;
+  private rafId: number | null = null;
   private prevFrame: Uint8ClampedArray | null = null;
   private waveform: number[] = [];
   private motionTrace: number[] = [];
+  private torsoPose = { cx: 0.5, cy: 0.58, scale: 1, tilt: 0 };
 
   async initCapture() {
     try {
@@ -204,6 +206,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       this.captureReady.set(true);
       this.hardwareInfo.set(navigator.userAgent.includes('Mobile') ? 'Telefon kamera + mikrofon' : 'Noutbuk webcam + mikrofon');
       this.startQualityLoop();
+      this.startOverlayLoop();
     } catch (error) {
       console.error(error);
       this.liveGuide.set('Qurilma ruxsati rad etildi yoki media qurilma topilmadi.');
@@ -247,19 +250,19 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       const brightness = this.brightness();
       const motion = this.motionTrace.slice(-8).reduce((a, b) => a + b, 0) / Math.max(1, this.motionTrace.slice(-8).length);
       const mic = this.waveform.slice(-8).reduce((a, b) => a + b, 0) / Math.max(1, this.waveform.slice(-8).length);
-
-      if (brightness < 45) this.liveGuide.set('Yorug‘lik yetarli emas, nur manbasini oshiring.');
-      else if (motion > 45) this.liveGuide.set('Harakat ko‘p, gavdani barqaror ushlang.');
-      else if (mic < 8) this.liveGuide.set('Audio signal sust, mikrofonni to‘smang.');
-      else this.liveGuide.set('Pozitsiya to‘g‘ri, capture sifati yaxshi.');
+      this.updateGuidance(brightness, motion, mic);
 
       const quality = Math.max(10, Math.min(98, Math.round(100 - Math.abs(55 - brightness) - motion * 0.7 - Math.max(0, 12 - mic) * 2)));
       this.signalQuality.set(quality);
       this.confidence.set(Math.max(10, Math.min(98, Math.round(quality * 0.78 + (100 - motion) * 0.22))));
       this.urgency.set(Math.max(1, Math.min(99, Math.round((motion * 0.5) + (100 - quality) * 0.5))));
-      this.drawOverlay();
     }, 800);
   }
+
+  private startOverlayLoop = () => {
+    this.drawOverlay();
+    this.rafId = requestAnimationFrame(this.startOverlayLoop);
+  };
 
   private async runPipelineAndGenerate() {
     this.pipelineActive.set(true);
@@ -369,12 +372,18 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const accent = ok ? '#22c55e' : '#f97316';
     const soft = ok ? 'rgba(34,197,94,0.14)' : 'rgba(249,115,22,0.14)';
 
-    const cx = w / 2;
-    const neckY = h * 0.26;
-    const shoulderY = h * 0.35;
-    const thoraxTop = h * 0.35;
-    const thoraxBottom = h * 0.83;
-    const thoraxHalfW = w * 0.2;
+    const pose = this.estimateTorsoPose();
+    this.torsoPose.cx = this.torsoPose.cx * 0.82 + pose.cx * 0.18;
+    this.torsoPose.cy = this.torsoPose.cy * 0.82 + pose.cy * 0.18;
+    this.torsoPose.scale = this.torsoPose.scale * 0.84 + pose.scale * 0.16;
+    this.torsoPose.tilt = this.torsoPose.tilt * 0.8 + pose.tilt * 0.2;
+
+    const cx = w * this.torsoPose.cx;
+    const neckY = h * (this.torsoPose.cy - 0.3 * this.torsoPose.scale);
+    const shoulderY = h * (this.torsoPose.cy - 0.2 * this.torsoPose.scale);
+    const thoraxTop = h * (this.torsoPose.cy - 0.2 * this.torsoPose.scale);
+    const thoraxBottom = h * (this.torsoPose.cy + 0.28 * this.torsoPose.scale);
+    const thoraxHalfW = w * 0.2 * this.torsoPose.scale;
 
     // outer thorax contour
     ctx.strokeStyle = accent;
@@ -466,6 +475,67 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     ctx.fillText(ok ? 'Anatomik zona mos: ko‘krak sohasi to‘g‘ri' : 'Ko‘krak markaziga yaqinlashing va barqaror turing', cx - thoraxHalfW, thoraxTop - 8);
   }
 
+  private estimateTorsoPose(): { cx: number; cy: number; scale: number; tilt: number } {
+    const video = this.videoRef?.nativeElement;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return this.torsoPose;
+    const c = document.createElement('canvas');
+    c.width = 96; c.height = 72;
+    const ctx = c.getContext('2d');
+    if (!ctx) return this.torsoPose;
+    ctx.drawImage(video, 0, 0, c.width, c.height);
+    const data = ctx.getImageData(0, 0, c.width, c.height).data;
+
+    let count = 0;
+    let sumX = 0, sumY = 0;
+    let minX = c.width, maxX = 0, minY = c.height, maxY = 0;
+    let leftMass = 0, rightMass = 0;
+
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        const i = (y * c.width + x) * 4;
+        const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        if (lum < 165) {
+          count++;
+          sumX += x; sumY += y;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          if (x < c.width / 2) leftMass++; else rightMass++;
+        }
+      }
+    }
+
+    if (count < 220) return this.torsoPose;
+    const cx = sumX / count / c.width;
+    const cy = sumY / count / c.height;
+    const bw = Math.max(1, maxX - minX);
+    const bh = Math.max(1, maxY - minY);
+    const scale = Math.max(0.72, Math.min(1.28, (bw / c.width) * 1.9));
+    const tilt = (rightMass - leftMass) / Math.max(1, count);
+    return { cx, cy, scale, tilt };
+  }
+
+  private updateGuidance(brightness: number, motion: number, mic: number) {
+    const p = this.torsoPose;
+    const tooFar = p.scale < 0.84;
+    const tooNear = p.scale > 1.18;
+    const offCenter = Math.abs(p.cx - 0.5) > 0.11;
+    const highLow = p.cy < 0.48 || p.cy > 0.67;
+    const rotated = Math.abs(p.tilt) > 0.08;
+    const unstable = motion > 45;
+
+    if (brightness < 45) this.liveGuide.set('Yorug‘lik yetarli emas');
+    else if (mic < 8) this.liveGuide.set('Audio sifati past');
+    else if (tooFar) this.liveGuide.set('Kamera juda uzoq');
+    else if (tooNear) this.liveGuide.set('Kamera juda yaqin');
+    else if (offCenter) this.liveGuide.set('Ko‘krak sohasi markazda emas (chap/o‘ng siljish mavjud)');
+    else if (highLow) this.liveGuide.set('Target zona noto‘g‘ri (juda yuqori yoki past)');
+    else if (rotated) this.liveGuide.set('Tana burilgan, frontal holatga o‘ting');
+    else if (unstable) this.liveGuide.set('Foydalanuvchi juda ko‘p harakatlanyapti, signal beqaror');
+    else this.liveGuide.set('Pozitsiya to‘g‘ri, capture valid');
+  }
+
   private sampleSignals() {
     if (this.analyser) {
       this.analyser.getByteTimeDomainData(this.audioData);
@@ -528,6 +598,8 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     if (this.qcTimer) clearInterval(this.qcTimer);
     this.timer = null;
     this.qcTimer = null;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.rafId = null;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.audioContext?.close();
     this.stream = null;
