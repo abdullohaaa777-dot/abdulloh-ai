@@ -66,10 +66,12 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           </div>
         } @else {
           <div class="p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm">
+            <p class="font-semibold mb-1">Signal sifati past. Natija aniqligi pasayishi mumkin.</p>
             @for (warn of readinessWarnings(); track warn) { <p>• {{ warn }}</p> }
+            <p class="mt-1 font-semibold">Joylashuvni yaxshilang yoki baribir testni boshlang.</p>
           </div>
         }
-        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording() || !isReady()">Avtomatik capture (25s)</button>
+        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording()">{{ isReady() ? 'Avtomatik capture (25s)' : 'Baribir testni boshlash (25s)' }}</button>
       </div>
     </section>
 
@@ -562,7 +564,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       (motion <= 45 ? 16 : 0);
     const ready = readinessScore >= 78 && this.signalQuality() >= 62 && this.confidence() >= 58;
     this.isReady.set(ready);
-    this.readinessWarnings.set(ready ? ['Signal to‘g‘ri', 'Natija chiqarish uchun yetarli', 'Testni boshlang'] : [...warnings, 'Natija chiqarish uchun signal hali yetarli emas']);
+    this.readinessWarnings.set(ready
+      ? ['Signal to‘g‘ri', 'Natija chiqarish uchun yetarli', 'Testni boshlang']
+      : [...warnings, 'Natija aniqligi pasayishi mumkin', 'Signal past, lekin davom etish mumkin']);
 
     if (ready) this.liveGuide.set('Signal to‘g‘ri. Natija chiqarish uchun yetarli. Testni boshlang');
     else this.liveGuide.set(warnings[0] || 'Natija chiqarish uchun signal hali yetarli emas');
