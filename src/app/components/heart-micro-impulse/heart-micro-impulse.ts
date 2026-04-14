@@ -262,23 +262,28 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
             </div>
           </div>
 
-          <details class="p-4 border rounded-2xl bg-slate-50/70" open>
-            <summary class="font-black cursor-pointer">Prekordial rezonans topografiya xaritasi — to‘liq ilmiy izoh</summary>
-            <div class="mt-3 grid lg:grid-cols-3 gap-4 text-sm">
+          <details class="p-4 border rounded-2xl bg-gradient-to-br from-slate-50 to-emerald-50/50" open>
+            <summary class="font-black cursor-pointer text-base">Xaritani qanday o‘qish kerak?</summary>
+            <div class="mt-3 space-y-4 text-sm">
               <div class="p-3 rounded-xl border bg-white">
-                <h5 class="font-black">1) Sodda tushuntirish</h5>
-                <p class="mt-2">Bu xarita ko‘krak/prekordial zonada yurakka bog‘liq mikro-harakat, vibroakustik tebranish va rezonans signallarining qayerda kuchli yoki sust ekanini ko‘rsatadi. Ranglar turli zonalardagi signal intensivligini bildiradi.</p>
-                <p class="mt-2">Kuchli zona ayrim hududlarda mexanik yuklama yoki rezonans faolligi yuqoriligini, sust zona esa nisbatan barqarorroq yoki past amplitudali javobni anglatishi mumkin.</p>
+                <h5 class="font-black">Sodda izoh</h5>
+                <p class="mt-2">Prekordial rezonans topografiya xaritasi ko‘krak zonalari bo‘yicha signalning bir xil yoki notekis tarqalishini ko‘rsatadi. Bu rasm emas, balki yurak bilan bog‘liq mikro-harakat va vibroakustik javobning zonal tahlili.</p>
               </div>
+
               <div class="p-3 rounded-xl border bg-white">
-                <h5 class="font-black">2) Chuqur ilmiy tushuntirish</h5>
-                <p class="mt-2">Xarita video+audio oqimidan olingan faza-amplituda va tarqalish proksilarini zonal shaklda agregatsiya qilish orqali olinadi. Asimmetriya chap-o‘ng rezonans tafovutini, faza kechikishi mexanik javobning vaqt bo‘yicha siljishini, dispersiya esa signalning hududlar bo‘yicha tarqoqligini ifodalaydi.</p>
-                <p class="mt-2">Rang intensivligi oshgani sari rezonans notekisligi, turbulent vibroakustik komponent yoki mexanik sinxronlik buzilishi ehtimoli ortishi mumkin.</p>
+                <h5 class="font-black">Ilmiy talqin</h5>
+                <ul class="list-disc pl-5 mt-2 space-y-1">
+                  <li><strong>Ochiqroq / sarg‘ish-yashilga yaqin zona</strong> — signal ko‘proq notekis, dispersiya yoki turbulentlik ehtimoli yuqoriroq.</li>
+                  <li><strong>To‘qroq / bir xil yashil zona</strong> — signal nisbatan barqarorroq, zonadagi mexanik rezonans bir tekisroq.</li>
+                  <li><strong>Bir tomondagi rang farqi kattaroq bo‘lsa</strong> — chap-o‘ng asimmetriya ehtimoli mavjud.</li>
+                  <li><strong>Markaziy va chap prekordial zonalarda farq katta bo‘lsa</strong> — mexanik tarqalish yoki rezonans bir xil emasligini ko‘rsatuvchi ehtimoliy signal.</li>
+                  <li><strong>Hamma joy deyarli bir xil bo‘lsa</strong> — xarita bir tekis, ya’ni zonalararo katta tafovut ko‘rinmayapti.</li>
+                </ul>
               </div>
+
               <div class="p-3 rounded-xl border bg-white">
-                <h5 class="font-black">3) O‘ta chuqur mexanistik tushuntirish</h5>
-                <p class="mt-2">Topografik pattern mikro-motion tarqalishi, vibroakustik propagatsiya va elektromechanik couplingning fazoviy heterogenligini aks ettiradi. Regional yuqori energiya cho‘qqilari valvular oqim turbulensiyasi, miokard devor javobi asinxronligi yoki hemodinamik yuklama gradientlariga mos kelishi mumkin.</p>
-                <p class="mt-2">Bu vizual AI-qo‘llab-quvvatlangan skrining hisoblanadi: yakuniy tashxis emas. Klinik tasdiq uchun EKG, EHO, Holter va laborator tekshiruvlar talab etilishi mumkin.</p>
+                <h5 class="font-black">Muhim eslatma</h5>
+                <p class="mt-2">Bu blok AI asosidagi topografik tahlil natijasi hisoblanadi. U yakuniy tashxis emas; klinik tasdiq uchun EKG, EHO, Holter va zarur laborator tekshiruvlar talab etilishi mumkin.</p>
               </div>
             </div>
           </details>
