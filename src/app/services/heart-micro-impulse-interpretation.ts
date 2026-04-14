@@ -12,7 +12,7 @@ export class HeartMicroImpulseInterpretationService {
     ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
     : null;
 
-  async interpret(features: HeartMicroImpulseFeatures, topDiagnoses: DiagnosisProb[], main: DiagnosisProb): Promise<HeartMicroImpulseNarrative> {
+  async interpret(features: HeartMicroImpulseFeatures, topDiagnoses: DiagnosisProb[], main: DiagnosisProb, scanMode: 'standard' | 'topography' = 'standard'): Promise<HeartMicroImpulseNarrative> {
     const local = this.localNarrative(features, topDiagnoses, main);
     if (!this.ai) return local;
 
@@ -25,6 +25,7 @@ export class HeartMicroImpulseInterpretationService {
             text: `Siz yurak mikro impuls skrining tahlilchisiz. Qat'iy tashxis qo'ymang, dori/doza yozmang.
 Quyidagi structured featurelar va top ehtimoliy diagnozlar asosida chuqur tibbiy izohni JSON formatda qaytaring.
 features=${JSON.stringify(features)}
+scanMode=${scanMode}
 topDiagnoses=${JSON.stringify(topDiagnoses)}
 mainDiagnosis=${JSON.stringify(main)}
 
@@ -43,7 +44,9 @@ JSON schema:
   "keyingiQadamlar": string[],
   "soddaIzoh": string[],
   "chuqurIlmiyIzoh": string[],
-  "otaChuqurMexanistikIzoh": string[]
+  "otaChuqurMexanistikIzoh": string[],
+  "topografikXaritaIzohi": string[],
+  "individualYurakModelIzohi": string[]
 }`
           }]
         }],
@@ -66,7 +69,9 @@ JSON schema:
         keyingiQadamlar: parsed.keyingiQadamlar ?? local.keyingiQadamlar,
         soddaIzoh: parsed.soddaIzoh ?? local.soddaIzoh,
         chuqurIlmiyIzoh: parsed.chuqurIlmiyIzoh ?? local.chuqurIlmiyIzoh,
-        otaChuqurMexanistikIzoh: parsed.otaChuqurMexanistikIzoh ?? local.otaChuqurMexanistikIzoh
+        otaChuqurMexanistikIzoh: parsed.otaChuqurMexanistikIzoh ?? local.otaChuqurMexanistikIzoh,
+        topografikXaritaIzohi: parsed.topografikXaritaIzohi ?? local.topografikXaritaIzohi,
+        individualYurakModelIzohi: parsed.individualYurakModelIzohi ?? local.individualYurakModelIzohi
       });
     } catch (error) {
       console.error('Heart interpretation fallback', error);
@@ -94,7 +99,9 @@ JSON schema:
       keyingiQadamlar: input.keyingiQadamlar.map(clean),
       soddaIzoh: input.soddaIzoh.map(clean),
       chuqurIlmiyIzoh: input.chuqurIlmiyIzoh.map(clean),
-      otaChuqurMexanistikIzoh: input.otaChuqurMexanistikIzoh.map(clean)
+      otaChuqurMexanistikIzoh: input.otaChuqurMexanistikIzoh.map(clean),
+      topografikXaritaIzohi: input.topografikXaritaIzohi.map(clean),
+      individualYurakModelIzohi: input.individualYurakModelIzohi.map(clean)
     };
   }
 
@@ -138,7 +145,15 @@ JSON schema:
       keyingiQadamlar: ['7 kun ichida qayta skrining qiling', 'Semptom jurnal yuriting', 'Kardiolog ko‘rigini rejalashtiring'],
       soddaIzoh: ['Tizim yurak urishi bilan bog‘liq mikro-harakat va tovush izlarini tahlil qildi.'],
       chuqurIlmiyIzoh: ['Multimodal signal filtratsiyasi orqali ritm beqarorligi va vibroakustik dispersiya proksilari baholandi.'],
-      otaChuqurMexanistikIzoh: ['Elektromexanik faza sinxronligi, motion-energy taqsimoti va akustik turbulensiya indekslari integratsiyalashgan inferens modelida birlashtirildi.']
+      otaChuqurMexanistikIzoh: ['Elektromexanik faza sinxronligi, motion-energy taqsimoti va akustik turbulensiya indekslari integratsiyalashgan inferens modelida birlashtirildi.'],
+      topografikXaritaIzohi: [
+        `Prekordial dispersiya skori ${features.prekordialDispersiyaSkori}% va rezonans asimmetriyasi ${features.rezonansAsimmetriyaIndeksi}% bo‘yicha zonal notekislik qayd etildi.`,
+        `Mexanik tarqalish kechikishi ${features.mexanikTarqalishKechikishi}% darajada baholanib, ko‘krak usti rezonans xaritasi bilan mos talqin qilindi.`
+      ],
+      individualYurakModelIzohi: [
+        `Individual yurak modeli mikrosinxronlik indeksi ${features.mikrosinxronlikIndeksi}% va turbulent vibroakustik ehtimol ${features.turbulentVibroakustikEhtimol}% bilan moslashtirildi.`,
+        'Modeldagi chap-o‘ng rezonans tafovuti ehtimoliy mexanik beqarorlik yo‘nalishlarini vizual ko‘rsatadi.'
+      ]
     };
   }
 }

@@ -13,6 +13,11 @@ export interface HeartMicroImpulseFeatures {
   signalQuality: number;
   confidence: number;
   urgency: number;
+  rezonansAsimmetriyaIndeksi: number;
+  mexanikTarqalishKechikishi: number;
+  prekordialDispersiyaSkori: number;
+  mikrosinxronlikIndeksi: number;
+  turbulentVibroakustikEhtimol: number;
 }
 
 export interface DiagnosisProb {
@@ -35,6 +40,8 @@ export interface HeartMicroImpulseNarrative {
   soddaIzoh: string[];
   chuqurIlmiyIzoh: string[];
   otaChuqurMexanistikIzoh: string[];
+  topografikXaritaIzohi: string[];
+  individualYurakModelIzohi: string[];
 }
 
 export interface HeartMicroImpulseSession {
@@ -47,6 +54,13 @@ export interface HeartMicroImpulseSession {
   topDiagnoses: DiagnosisProb[];
   mainDiagnosis: DiagnosisProb;
   narrative: HeartMicroImpulseNarrative;
+  scanMode?: 'standard' | 'topography';
+  topographyGrid?: number[];
+  heartVisualProfile?: {
+    pulseLevel: number;
+    leftRightBias: number;
+    kineticDelay: number;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -93,7 +107,12 @@ export class HeartMicroImpulseStorageService {
         autonomicStressProxy: x.features?.autonomicStressProxy ?? 40,
         signalQuality: x.features?.signalQuality ?? 70,
         confidence: x.features?.confidence ?? 70,
-        urgency: x.features?.urgency ?? 20
+        urgency: x.features?.urgency ?? 20,
+        rezonansAsimmetriyaIndeksi: x.features?.rezonansAsimmetriyaIndeksi ?? 35,
+        mexanikTarqalishKechikishi: x.features?.mexanikTarqalishKechikishi ?? 30,
+        prekordialDispersiyaSkori: x.features?.prekordialDispersiyaSkori ?? 40,
+        mikrosinxronlikIndeksi: x.features?.mikrosinxronlikIndeksi ?? 60,
+        turbulentVibroakustikEhtimol: x.features?.turbulentVibroakustikEhtimol ?? 28
       },
       topDiagnoses: Array.isArray(x.topDiagnoses) ? x.topDiagnoses : [],
       mainDiagnosis: x.mainDiagnosis || { name: 'Aritmiya yo‘nalishi', percent: 34 },
@@ -111,7 +130,16 @@ export class HeartMicroImpulseStorageService {
         keyingiQadamlar: [],
         soddaIzoh: [],
         chuqurIlmiyIzoh: [],
-        otaChuqurMexanistikIzoh: []
+        otaChuqurMexanistikIzoh: [],
+        topografikXaritaIzohi: [],
+        individualYurakModelIzohi: []
+      },
+      scanMode: x.scanMode || 'standard',
+      topographyGrid: Array.isArray(x.topographyGrid) ? x.topographyGrid : [],
+      heartVisualProfile: x.heartVisualProfile || {
+        pulseLevel: 50,
+        leftRightBias: 0,
+        kineticDelay: 30
       }
     };
   }
