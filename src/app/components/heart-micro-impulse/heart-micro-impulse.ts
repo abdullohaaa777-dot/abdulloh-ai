@@ -327,7 +327,12 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       autonomicStressProxy: this.clamp(Math.round(this.signalQuality() < 60 ? 70 : 35 + motStd), 1, 99),
       signalQuality: this.signalQuality(),
       confidence: this.confidence(),
-      urgency: this.urgency()
+      urgency: this.urgency(),
+      rezonansAsimmetriyaIndeksi: this.clamp(Math.round((motStd * 1.1) + (Math.abs(this.avg(w) - this.avg(m)) * 1.2)), 1, 99),
+      mexanikTarqalishKechikishi: this.clamp(Math.round((wavStd * 0.9) + (motStd * 1.1)), 1, 99),
+      prekordialDispersiyaSkori: this.clamp(Math.round((this.max(w) * 0.8) + (this.max(m) * 0.9)), 1, 99),
+      mikrosinxronlikIndeksi: this.clamp(Math.round(100 - ((wavStd * 1.1) + (motStd * 1.0))), 1, 99),
+      turbulentVibroakustikEhtimol: this.clamp(Math.round((this.max(w) * 1.0) + (motStd * 0.8)), 1, 99)
     };
   }
 
