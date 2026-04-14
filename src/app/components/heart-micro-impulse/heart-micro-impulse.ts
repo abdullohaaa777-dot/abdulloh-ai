@@ -205,14 +205,36 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <div class="grid lg:grid-cols-2 gap-4">
             <div class="p-4 border rounded-2xl">
               <h4 class="font-black">Individual yurak vizualizatsiyasi (3D-uslub)</h4>
-              <div class="mt-3 h-52 rounded-2xl border relative overflow-hidden bg-slate-950/95">
-                <div class="absolute inset-0 opacity-80" [style.background]="heartModelBackground(r)"></div>
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <div class="relative" [style.transform]="heartModelTransform(r)">
-                    <div class="w-24 h-28 rounded-[42%_42%_48%_48%] bg-rose-500/80 shadow-[0_0_40px_rgba(244,63,94,0.55)] animate-pulse"></div>
-                    <div class="absolute -top-3 -left-2 w-9 h-10 rounded-full bg-rose-400/75"></div>
-                    <div class="absolute -top-2 right-0 w-8 h-9 rounded-full bg-rose-300/70"></div>
-                  </div>
+              <div class="mt-3 h-56 rounded-2xl border relative overflow-hidden bg-slate-950/95">
+                <div class="absolute inset-0 opacity-85" [style.background]="heartModelBackground(r)"></div>
+                <div class="absolute inset-0 flex items-center justify-center p-2">
+                  <svg viewBox="0 0 320 260" class="w-full h-full max-w-[290px]" [style.transform]="heartModelTransform(r)">
+                    <defs>
+                      <radialGradient id="myocardiumBase" cx="45%" cy="35%" r="70%">
+                        <stop offset="0%" stop-color="#fecaca"></stop>
+                        <stop offset="40%" stop-color="#ef4444"></stop>
+                        <stop offset="78%" stop-color="#991b1b"></stop>
+                        <stop offset="100%" stop-color="#450a0a"></stop>
+                      </radialGradient>
+                      <linearGradient id="vesselShade" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fda4af"></stop>
+                        <stop offset="100%" stop-color="#9f1239"></stop>
+                      </linearGradient>
+                      <radialGradient id="analysisHotspot" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" [attr.stop-color]="heartHotspotColor(r)" stop-opacity="0.8"></stop>
+                        <stop offset="100%" [attr.stop-color]="heartHotspotColor(r)" stop-opacity="0"></stop>
+                      </radialGradient>
+                    </defs>
+
+                    <ellipse cx="170" cy="146" rx="92" ry="86" fill="url(#myocardiumBase)" opacity="0.95"></ellipse>
+                    <path d="M88 144 C78 118, 90 90, 118 74 C142 60, 170 64, 186 78 C204 62, 236 60, 256 82 C276 103, 276 130, 258 156 C240 182, 212 204, 186 234 C174 248, 154 248, 144 236 C122 208, 100 192, 88 144 Z" fill="url(#myocardiumBase)" stroke="#7f1d1d" stroke-width="2.4"></path>
+                    <path d="M186 78 C196 56, 216 42, 236 44 C254 46, 264 58, 258 72 C254 84, 236 90, 214 92 Z" fill="url(#vesselShade)" opacity="0.96"></path>
+                    <path d="M148 86 C140 60, 118 42, 96 46 C80 50, 72 64, 78 76 C84 88, 102 92, 122 94 Z" fill="url(#vesselShade)" opacity="0.9"></path>
+                    <path d="M116 116 C130 106, 148 102, 170 104 C200 108, 220 124, 228 146 C216 134, 194 128, 172 126 C146 122, 128 124, 116 116 Z" fill="#7f1d1d" opacity="0.35"></path>
+                    <path d="M144 132 C156 148, 174 162, 196 166" stroke="#fecaca" stroke-width="3" stroke-linecap="round" opacity="0.42"></path>
+                    <path d="M132 154 C150 176, 166 194, 178 214" stroke="#fecaca" stroke-width="2.4" stroke-linecap="round" opacity="0.35"></path>
+                    <ellipse cx="186" cy="150" rx="72" ry="58" fill="url(#analysisHotspot)"></ellipse>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -226,6 +248,27 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
               <p class="text-xs text-medical-text-muted mt-2">Zonal ko‘krak rezonans tarqalishi (yuqori qiymat = yuqori dispersiya/turbulentlik).</p>
             </div>
           </div>
+
+          <details class="p-4 border rounded-2xl bg-slate-50/70" open>
+            <summary class="font-black cursor-pointer">Prekordial rezonans topografiya xaritasi — to‘liq ilmiy izoh</summary>
+            <div class="mt-3 grid lg:grid-cols-3 gap-4 text-sm">
+              <div class="p-3 rounded-xl border bg-white">
+                <h5 class="font-black">1) Sodda tushuntirish</h5>
+                <p class="mt-2">Bu xarita ko‘krak/prekordial zonada yurakka bog‘liq mikro-harakat, vibroakustik tebranish va rezonans signallarining qayerda kuchli yoki sust ekanini ko‘rsatadi. Ranglar turli zonalardagi signal intensivligini bildiradi.</p>
+                <p class="mt-2">Kuchli zona ayrim hududlarda mexanik yuklama yoki rezonans faolligi yuqoriligini, sust zona esa nisbatan barqarorroq yoki past amplitudali javobni anglatishi mumkin.</p>
+              </div>
+              <div class="p-3 rounded-xl border bg-white">
+                <h5 class="font-black">2) Chuqur ilmiy tushuntirish</h5>
+                <p class="mt-2">Xarita video+audio oqimidan olingan faza-amplituda va tarqalish proksilarini zonal shaklda agregatsiya qilish orqali olinadi. Asimmetriya chap-o‘ng rezonans tafovutini, faza kechikishi mexanik javobning vaqt bo‘yicha siljishini, dispersiya esa signalning hududlar bo‘yicha tarqoqligini ifodalaydi.</p>
+                <p class="mt-2">Rang intensivligi oshgani sari rezonans notekisligi, turbulent vibroakustik komponent yoki mexanik sinxronlik buzilishi ehtimoli ortishi mumkin.</p>
+              </div>
+              <div class="p-3 rounded-xl border bg-white">
+                <h5 class="font-black">3) O‘ta chuqur mexanistik tushuntirish</h5>
+                <p class="mt-2">Topografik pattern mikro-motion tarqalishi, vibroakustik propagatsiya va elektromechanik couplingning fazoviy heterogenligini aks ettiradi. Regional yuqori energiya cho‘qqilari valvular oqim turbulensiyasi, miokard devor javobi asinxronligi yoki hemodinamik yuklama gradientlariga mos kelishi mumkin.</p>
+                <p class="mt-2">Bu vizual AI-qo‘llab-quvvatlangan skrining hisoblanadi: yakuniy tashxis emas. Klinik tasdiq uchun EKG, EHO, Holter va laborator tekshiruvlar talab etilishi mumkin.</p>
+              </div>
+            </div>
+          </details>
         }
       </section>
     }
@@ -754,6 +797,13 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const rot = Math.max(-14, Math.min(14, profile.leftRightBias * 0.65));
     const scale = 0.92 + (profile.pulseLevel / 100) * 0.18;
     return `translateY(${profile.kineticDelay * 0.08}px) rotate(${rot}deg) scale(${scale})`;
+  }
+
+  heartHotspotColor(r: HeartMicroImpulseSession): string {
+    const index = r.features.rezonansAsimmetriyaIndeksi;
+    if (index >= 70) return '#fb7185';
+    if (index >= 45) return '#f97316';
+    return '#22d3ee';
   }
 
   private buildTopographyGrid(features: HeartMicroImpulseFeatures): number[] {
