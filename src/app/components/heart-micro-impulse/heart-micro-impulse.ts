@@ -210,15 +210,25 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
                 <div class="absolute inset-0 flex items-center justify-center p-2">
                   <svg viewBox="0 0 320 260" class="w-full h-full max-w-[290px]" [style.transform]="heartModelTransform(r)">
                     <defs>
-                      <radialGradient id="myocardiumBase" cx="45%" cy="35%" r="70%">
-                        <stop offset="0%" stop-color="#fecaca"></stop>
-                        <stop offset="40%" stop-color="#ef4444"></stop>
-                        <stop offset="78%" stop-color="#991b1b"></stop>
-                        <stop offset="100%" stop-color="#450a0a"></stop>
+                      <radialGradient id="myocardiumBase" cx="40%" cy="30%" r="74%">
+                        <stop offset="0%" stop-color="#ffe4e6"></stop>
+                        <stop offset="26%" stop-color="#fb7185"></stop>
+                        <stop offset="58%" stop-color="#b91c1c"></stop>
+                        <stop offset="86%" stop-color="#7f1d1d"></stop>
+                        <stop offset="100%" stop-color="#3f0b0b"></stop>
                       </radialGradient>
+                      <linearGradient id="myocardiumRidge" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fecdd3" stop-opacity="0.9"></stop>
+                        <stop offset="100%" stop-color="#7f1d1d" stop-opacity="0.25"></stop>
+                      </linearGradient>
                       <linearGradient id="vesselShade" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#fda4af"></stop>
-                        <stop offset="100%" stop-color="#9f1239"></stop>
+                        <stop offset="0%" stop-color="#fecdd3"></stop>
+                        <stop offset="38%" stop-color="#fb7185"></stop>
+                        <stop offset="100%" stop-color="#881337"></stop>
+                      </linearGradient>
+                      <linearGradient id="veinShade" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#f43f5e"></stop>
+                        <stop offset="100%" stop-color="#4c0519"></stop>
                       </linearGradient>
                       <radialGradient id="analysisHotspot" cx="50%" cy="50%" r="50%">
                         <stop offset="0%" [attr.stop-color]="heartHotspotColor(r)" stop-opacity="0.8"></stop>
@@ -226,14 +236,17 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
                       </radialGradient>
                     </defs>
 
-                    <ellipse cx="170" cy="146" rx="92" ry="86" fill="url(#myocardiumBase)" opacity="0.95"></ellipse>
-                    <path d="M88 144 C78 118, 90 90, 118 74 C142 60, 170 64, 186 78 C204 62, 236 60, 256 82 C276 103, 276 130, 258 156 C240 182, 212 204, 186 234 C174 248, 154 248, 144 236 C122 208, 100 192, 88 144 Z" fill="url(#myocardiumBase)" stroke="#7f1d1d" stroke-width="2.4"></path>
-                    <path d="M186 78 C196 56, 216 42, 236 44 C254 46, 264 58, 258 72 C254 84, 236 90, 214 92 Z" fill="url(#vesselShade)" opacity="0.96"></path>
-                    <path d="M148 86 C140 60, 118 42, 96 46 C80 50, 72 64, 78 76 C84 88, 102 92, 122 94 Z" fill="url(#vesselShade)" opacity="0.9"></path>
-                    <path d="M116 116 C130 106, 148 102, 170 104 C200 108, 220 124, 228 146 C216 134, 194 128, 172 126 C146 122, 128 124, 116 116 Z" fill="#7f1d1d" opacity="0.35"></path>
-                    <path d="M144 132 C156 148, 174 162, 196 166" stroke="#fecaca" stroke-width="3" stroke-linecap="round" opacity="0.42"></path>
-                    <path d="M132 154 C150 176, 166 194, 178 214" stroke="#fecaca" stroke-width="2.4" stroke-linecap="round" opacity="0.35"></path>
-                    <ellipse cx="186" cy="150" rx="72" ry="58" fill="url(#analysisHotspot)"></ellipse>
+                    <path d="M86 150 C70 112, 88 74, 128 58 C156 48, 182 54, 196 72 C212 56, 238 50, 262 68 C286 86, 290 118, 274 148 C260 176, 236 204, 208 228 C188 246, 160 246, 142 230 C116 206, 98 188, 86 150 Z" fill="url(#myocardiumBase)" stroke="#7f1d1d" stroke-width="2.8"></path>
+                    <path d="M114 122 C130 100, 156 90, 188 92 C220 96, 244 114, 254 138 C232 124, 202 120, 176 120 C146 120, 126 124, 114 122 Z" fill="#7f1d1d" opacity="0.34"></path>
+                    <path d="M130 146 C150 168, 170 188, 188 222" stroke="url(#myocardiumRidge)" stroke-width="5.2" stroke-linecap="round" opacity="0.7"></path>
+                    <path d="M162 84 C158 62, 146 44, 126 38 C106 34, 86 46, 84 64 C82 82, 100 98, 122 102 C138 104, 154 100, 162 84 Z" fill="url(#vesselShade)" opacity="0.96"></path>
+                    <path d="M196 84 C206 58, 226 38, 250 38 C270 40, 284 56, 280 74 C274 94, 252 106, 228 104 C212 102, 202 96, 196 84 Z" fill="url(#vesselShade)" opacity="0.96"></path>
+                    <path d="M176 72 C182 54, 196 44, 212 46 C224 48, 230 60, 226 74 C220 88, 204 98, 188 98" fill="none" stroke="url(#veinShade)" stroke-width="11" stroke-linecap="round" opacity="0.88"></path>
+                    <path d="M144 90 C130 98, 118 112, 116 126 C114 140, 126 146, 138 140 C150 132, 158 116, 158 102 C158 92, 152 86, 144 90 Z" fill="#ef4444" opacity="0.72"></path>
+                    <path d="M196 118 C212 126, 222 140, 222 156 C220 172, 208 178, 196 170 C182 160, 174 146, 176 130 C178 120, 186 114, 196 118 Z" fill="#dc2626" opacity="0.68"></path>
+                    <path d="M120 156 C138 170, 150 188, 156 210" stroke="#fecdd3" stroke-width="3.2" stroke-linecap="round" opacity="0.45"></path>
+                    <path d="M178 144 C198 158, 212 174, 220 194" stroke="#fecdd3" stroke-width="3.2" stroke-linecap="round" opacity="0.38"></path>
+                    <ellipse cx="188" cy="152" rx="76" ry="62" fill="url(#analysisHotspot)"></ellipse>
                   </svg>
                 </div>
               </div>
