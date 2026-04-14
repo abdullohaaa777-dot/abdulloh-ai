@@ -25,12 +25,35 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
 
     <section class="bg-white border border-medical-border rounded-3xl p-6 shadow-sm">
       <h3 class="text-xl font-black">Tayyorgarlik protokoli</h3>
+      <div class="mt-3 inline-flex rounded-xl border border-medical-border p-1 bg-slate-50">
+        <button
+          class="px-3 py-2 rounded-lg text-sm font-semibold"
+          [class.bg-white]="scanMode() === 'standard'"
+          [class.shadow-sm]="scanMode() === 'standard'"
+          (click)="scanMode.set('standard')"
+        >
+          Standart skan
+        </button>
+        <button
+          class="px-3 py-2 rounded-lg text-sm font-semibold"
+          [class.bg-white]="scanMode() === 'topography'"
+          [class.shadow-sm]="scanMode() === 'topography'"
+          (click)="scanMode.set('topography')"
+        >
+          Prekordial Rezonans Topografiya
+        </button>
+      </div>
       <ol class="list-decimal pl-5 text-sm mt-3 space-y-1">
         <li>Ko‘krak sohasi kameraga markazda tushsin (asosiy zona).</li>
         <li>Bo‘yin/jugular sohasi ikkilamchi yordamchi zona sifatida ko‘rinishi mumkin.</li>
         <li>Atrof shovqinini kamaytiring, normal nafas holatida turing.</li>
         <li>Qurilma avtomatik tanlanadi: telefon yoki noutbuk kamera/mikrofoni.</li>
       </ol>
+      @if (scanMode() === 'topography') {
+        <div class="mt-3 text-sm p-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-800">
+          Topografiya rejimi: target zona avval aniqlanadi, so‘ng anatomik overlay va individual yurak modeli quriladi.
+        </div>
+      }
       <div class="mt-4 flex gap-2">
         <button class="btn-primary" (click)="initCapture()" [disabled]="captureReady()">Tizimni ulash</button>
         <button class="btn-secondary" (click)="stopCapture()" [disabled]="!captureReady()">To‘xtatish</button>
@@ -60,6 +83,10 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         <p class="text-sm">Signal sifati: <strong>{{ signalQuality() }}%</strong></p>
         <p class="text-sm">Ishonchlilik: <strong>{{ confidence() }}%</strong></p>
         <p class="text-sm">Shoshilinch indikator: <strong>{{ urgency() }}%</strong></p>
+        @if (scanMode() === 'topography') {
+          <p class="text-sm">Tracking aniqligi: <strong>{{ trackingConfidence() }}%</strong></p>
+          <p class="text-sm">Kontur ishonchliligi (kiyim ta’siri): <strong>{{ clothingReliability() }}%</strong></p>
+        }
         @if (isReady()) {
           <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold">
             Signal to‘g‘ri. Natija chiqarish uchun yetarli. Testni boshlang.
@@ -162,6 +189,44 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <h4 class="font-black">O‘ta chuqur mexanistik izoh</h4>
           <ul class="list-disc pl-5">@for (x of r.narrative.otaChuqurMexanistikIzoh; track x) {<li>{{ x }}</li>}</ul>
         </div>
+
+        @if (r.scanMode === 'topography') {
+          <div class="grid lg:grid-cols-2 gap-4">
+            <div class="p-4 border rounded-2xl text-sm">
+              <h4 class="font-black">Topografik xarita izohi</h4>
+              <ul class="list-disc pl-5">@for (x of r.narrative.topografikXaritaIzohi; track x) {<li>{{ x }}</li>}</ul>
+            </div>
+            <div class="p-4 border rounded-2xl text-sm">
+              <h4 class="font-black">Individual yurak modeli izohi</h4>
+              <ul class="list-disc pl-5">@for (x of r.narrative.individualYurakModelIzohi; track x) {<li>{{ x }}</li>}</ul>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-4">
+            <div class="p-4 border rounded-2xl">
+              <h4 class="font-black">Individual yurak vizualizatsiyasi (3D-uslub)</h4>
+              <div class="mt-3 h-52 rounded-2xl border relative overflow-hidden bg-slate-950/95">
+                <div class="absolute inset-0 opacity-80" [style.background]="heartModelBackground(r)"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="relative" [style.transform]="heartModelTransform(r)">
+                    <div class="w-24 h-28 rounded-[42%_42%_48%_48%] bg-rose-500/80 shadow-[0_0_40px_rgba(244,63,94,0.55)] animate-pulse"></div>
+                    <div class="absolute -top-3 -left-2 w-9 h-10 rounded-full bg-rose-400/75"></div>
+                    <div class="absolute -top-2 right-0 w-8 h-9 rounded-full bg-rose-300/70"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="p-4 border rounded-2xl">
+              <h4 class="font-black">Prekordial rezonans topografiya xaritasi</h4>
+              <div class="mt-3 grid grid-cols-6 gap-1.5">
+                @for (z of topographyCells(r); track $index) {
+                  <div class="h-10 rounded-md border border-slate-200" [style.background]="topographyColor(z)"></div>
+                }
+              </div>
+              <p class="text-xs text-medical-text-muted mt-2">Zonal ko‘krak rezonans tarqalishi (yuqori qiymat = yuqori dispersiya/turbulentlik).</p>
+            </div>
+          </div>
+        }
       </section>
     }
   </div>
@@ -187,6 +252,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   isReady = signal(false);
   readinessWarnings = signal<string[]>(['Natija chiqarish uchun signal hali yetarli emas']);
   overlayTracked = signal(false);
+  trackingConfidence = signal(0);
+  clothingReliability = signal(70);
+  scanMode = signal<'standard' | 'topography'>('standard');
   latest = signal<HeartMicroImpulseSession | null>(null);
   pipelineActive = signal(false);
   activePipelineStep = signal('');
@@ -266,6 +334,10 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       const brightness = this.brightness();
       const motion = this.motionTrace.slice(-8).reduce((a, b) => a + b, 0) / Math.max(1, this.motionTrace.slice(-8).length);
       const mic = this.waveform.slice(-8).reduce((a, b) => a + b, 0) / Math.max(1, this.waveform.slice(-8).length);
+      const pose = this.estimateTorsoPose();
+      this.trackingConfidence.set(Math.round(pose.confidence * 100));
+      const clothingReliability = this.chestContourReliability(pose);
+      this.clothingReliability.set(clothingReliability);
       this.updateGuidance(brightness, motion, mic);
 
       const quality = Math.max(10, Math.min(98, Math.round(100 - Math.abs(55 - brightness) - motion * 0.7 - Math.max(0, 12 - mic) * 2)));
@@ -290,7 +362,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const features = this.buildFeatures();
     const topDiagnoses = this.diagnosisDistribution(features);
     const main = topDiagnoses[0];
-    const narrative = await this.interpretationService.interpret(features, topDiagnoses, main);
+    const narrative = await this.interpretationService.interpret(features, topDiagnoses, main, this.scanMode());
+    const topographyGrid = this.scanMode() === 'topography' ? this.buildTopographyGrid(features) : [];
+    const heartVisualProfile = this.buildHeartVisualProfile(features);
 
     const session: HeartMicroImpulseSession = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `heart-${Date.now()}`,
@@ -301,7 +375,10 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       features,
       topDiagnoses,
       mainDiagnosis: main,
-      narrative
+      narrative,
+      scanMode: this.scanMode(),
+      topographyGrid,
+      heartVisualProfile
     };
 
     this.storage.save(session);
@@ -337,13 +414,16 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   }
 
   private diagnosisDistribution(f: HeartMicroImpulseFeatures): DiagnosisProb[] {
+    const topographyBoost = this.scanMode() === 'topography'
+      ? (f.rezonansAsimmetriyaIndeksi * 0.25 + f.mexanikTarqalishKechikishi * 0.2 + f.prekordialDispersiyaSkori * 0.22)
+      : 0;
     const raw = [
-      { name: 'Aritmiya yo‘nalishi', score: f.rhythmIrregularity * 1.2 + f.electromechanicalTimingProxy },
-      { name: 'Yurak yetishmovchiligi yo‘nalishi', score: f.perfusionInstabilityProxy + (100 - f.cycleStabilityProxy) + f.motionEnergyAsymmetry * 0.8 },
-      { name: 'Ishemik yurak kasalligi yo‘nalishi', score: f.vibroacousticResonanceShift + f.acousticTurbulence + f.autonomicStressProxy * 0.5 },
+      { name: 'Aritmiya yo‘nalishi', score: f.rhythmIrregularity * 1.2 + f.electromechanicalTimingProxy + topographyBoost * 0.22 },
+      { name: 'Yurak yetishmovchiligi yo‘nalishi', score: f.perfusionInstabilityProxy + (100 - f.cycleStabilityProxy) + f.motionEnergyAsymmetry * 0.8 + topographyBoost * 0.26 },
+      { name: 'Ishemik yurak kasalligi yo‘nalishi', score: f.vibroacousticResonanceShift + f.acousticTurbulence + f.autonomicStressProxy * 0.5 + topographyBoost * 0.3 },
       { name: 'Klapan patologiyasi yo‘nalishi', score: f.acousticTurbulence + f.chestMicroMotionAmplitude * 0.7 },
-      { name: 'Miokard disfunksiyasi yo‘nalishi', score: f.electromechanicalTimingProxy + f.perfusionInstabilityProxy },
-      { name: 'Post-viral yurak zararlanishi', score: f.autonomicStressProxy + f.vibroacousticResonanceShift },
+      { name: 'Miokard disfunksiyasi yo‘nalishi', score: f.electromechanicalTimingProxy + f.perfusionInstabilityProxy + topographyBoost * 0.2 },
+      { name: 'Post-viral yurak zararlanishi', score: f.autonomicStressProxy + f.vibroacousticResonanceShift + topographyBoost * 0.12 },
       { name: 'Vegetativ disbalans yo‘nalishi', score: f.autonomicStressProxy + (100 - f.signalQuality) }
     ].sort((a, b) => b.score - a.score).slice(0, 3);
 
@@ -557,7 +637,6 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const cx = sumX / count / c.width;
     const cy = sumY / count / c.height;
     const bw = Math.max(1, maxX - minX);
-    const bh = Math.max(1, maxY - minY);
     const scale = Math.max(0.72, Math.min(1.28, (bw / c.width) * 1.9));
     const tilt = (rightMass - leftMass) / Math.max(1, count);
     const occupancy = count / (c.width * c.height);
@@ -576,6 +655,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const unstable = motion > 45;
     const orientationWrong = this.isPreviewMirrored ? p.tilt < -0.12 : p.tilt > 0.12;
     const trackingWeak = !this.overlayTracked();
+    const clothingWeak = this.scanMode() === 'topography' && this.clothingReliability() < 52;
 
     const warnings: string[] = [];
     if (brightness < 45) warnings.push('Yorug‘lik yetarli emas');
@@ -588,6 +668,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     if (orientationWrong) warnings.push('Chap/o‘ng yo‘nalish noto‘g‘ri');
     if (unstable) warnings.push('Foydalanuvchi ko‘p harakatlanyapti, signal beqaror');
     if (trackingWeak) warnings.push('Ko‘krak sohasi aniqlanmoqda, target zona qidirilmoqda');
+    if (clothingWeak) warnings.push('Kiyim konturi sabab topografik aniqlik pasayishi mumkin');
 
     const readinessScore =
       (offCenter ? 0 : 18) +
@@ -646,6 +727,71 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     for (let i = 0; i < current.length; i += 20) diff += Math.abs(current[i] - this.prevFrame[i]);
     this.prevFrame = current;
     return Math.min(100, diff / 70);
+  }
+
+  topographyCells(r: HeartMicroImpulseSession): number[] {
+    if (r.topographyGrid?.length) return r.topographyGrid;
+    return this.buildTopographyGrid(r.features);
+  }
+
+  topographyColor(v: number): string {
+    const clamped = this.clamp(v, 1, 99);
+    const hue = 220 - Math.round(clamped * 1.8);
+    const alpha = 0.18 + (clamped / 100) * 0.66;
+    return `hsla(${hue}, 85%, 54%, ${alpha})`;
+  }
+
+  heartModelBackground(r: HeartMicroImpulseSession): string {
+    const profile = r.heartVisualProfile ?? this.buildHeartVisualProfile(r.features);
+    const shift = Math.max(-20, Math.min(20, profile.leftRightBias));
+    const left = this.clamp(46 - shift, 20, 80);
+    const right = this.clamp(54 + shift, 20, 80);
+    return `radial-gradient(circle at ${left}% 45%, rgba(244,63,94,0.44), rgba(15,23,42,0.88) 54%), radial-gradient(circle at ${right}% 62%, rgba(14,165,233,0.32), transparent 60%)`;
+  }
+
+  heartModelTransform(r: HeartMicroImpulseSession): string {
+    const profile = r.heartVisualProfile ?? this.buildHeartVisualProfile(r.features);
+    const rot = Math.max(-14, Math.min(14, profile.leftRightBias * 0.65));
+    const scale = 0.92 + (profile.pulseLevel / 100) * 0.18;
+    return `translateY(${profile.kineticDelay * 0.08}px) rotate(${rot}deg) scale(${scale})`;
+  }
+
+  private buildTopographyGrid(features: HeartMicroImpulseFeatures): number[] {
+    const base = [
+      features.prekordialDispersiyaSkori * 0.9,
+      features.rezonansAsimmetriyaIndeksi * 0.84,
+      features.mexanikTarqalishKechikishi * 0.95,
+      features.turbulentVibroakustikEhtimol * 0.88,
+      features.mikrosinxronlikIndeksi * 0.65,
+      features.motionEnergyAsymmetry * 0.78
+    ];
+    const grid: number[] = [];
+    for (let i = 0; i < 24; i++) {
+      const x = i % 6;
+      const y = Math.floor(i / 6);
+      const spread = base[(x + y) % base.length];
+      const resonance = features.prekordialDispersiyaSkori * (1 + (x - 2.5) * 0.06);
+      const asym = features.rezonansAsimmetriyaIndeksi * (this.isPreviewMirrored ? (x > 2 ? 1.08 : 0.92) : (x < 3 ? 1.08 : 0.92));
+      const depth = features.mexanikTarqalishKechikishi * (1 + y * 0.04);
+      grid.push(this.clamp((spread + resonance + asym + depth) / 4, 1, 99));
+    }
+    return grid;
+  }
+
+  private buildHeartVisualProfile(features: HeartMicroImpulseFeatures): { pulseLevel: number; leftRightBias: number; kineticDelay: number } {
+    return {
+      pulseLevel: this.clamp((features.signalQuality * 0.35) + (features.confidence * 0.45) + (features.acousticTurbulence * 0.2), 1, 99),
+      leftRightBias: this.clamp((features.rezonansAsimmetriyaIndeksi - 50) * 0.9, -40, 40),
+      kineticDelay: this.clamp((features.mexanikTarqalishKechikishi * 0.65) + ((100 - features.mikrosinxronlikIndeksi) * 0.2), 1, 99)
+    };
+  }
+
+  private chestContourReliability(pose: { confidence: number; scale: number }): number {
+    const brightness = this.brightness();
+    const base = pose.confidence * 100;
+    const sizePenalty = pose.scale < 0.82 || pose.scale > 1.2 ? 16 : 0;
+    const lightPenalty = brightness < 42 ? 18 : 0;
+    return this.clamp(base - sizePenalty - lightPenalty + 22, 1, 99);
   }
 
   private setupAudio(stream: MediaStream) {
