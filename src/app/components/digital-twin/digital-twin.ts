@@ -19,19 +19,23 @@ interface Patient {
   imports: [CommonModule, MatIconModule, RouterModule],
   template: `
     <div class="max-w-7xl mx-auto">
-      <div class="mb-10">
-        <h2 class="text-3xl font-extrabold text-medical-text tracking-tight">Digital Clinical Twin</h2>
-        <p class="text-medical-text-muted font-medium">Bemorlarning raqamli egizaklari va markaziy overview paneli</p>
+      <div class="mb-10 medical-depth-card p-6 md:p-8 relative overflow-hidden scan-sweep">
+        <div class="floating-medical-orb w-14 h-14 right-10 top-7 opacity-70 pointer-events-none"></div>
+        <div class="floating-medical-orb w-8 h-8 right-28 top-18 opacity-65 pointer-events-none" style="animation-delay: -3s"></div>
+        <p class="text-[11px] font-extrabold tracking-[0.24em] text-medical-primary/70 uppercase mb-2">Raqamli klinik egizak</p>
+        <h2 class="text-3xl font-extrabold text-medical-text tracking-tight">Tirik klinik manzarani bir ekranda kuzating</h2>
+        <p class="text-medical-text-muted font-medium">Bemorlarning raqamli egizagi, fiziologik signallar va xavf ko‘rsatkichlari yagona boshqaruv maydonida jamlanadi.</p>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main Twin Visualization Placeholder -->
-        <div class="lg:col-span-2 bg-white border border-medical-border p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden min-h-[500px]">
+        <div class="lg:col-span-2 medical-depth-card p-8 rounded-[2.5rem] relative overflow-hidden min-h-[500px]">
           <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/30 to-white -z-10"></div>
+          <div class="hud-ring w-64 h-64 -top-20 -right-20 opacity-45"></div>
           <div class="flex items-center justify-between mb-8">
             <h3 class="text-xl font-black text-medical-text">Raqamli Egizak Modeli</h3>
             <div class="flex gap-2">
-              <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-full">Active Sync</span>
+              <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-full">Jonli sinxron</span>
             </div>
           </div>
           
@@ -73,7 +77,7 @@ interface Patient {
           <div class="bg-white border border-medical-border p-8 rounded-3xl shadow-xl">
             <h3 class="text-lg font-bold text-medical-text mb-6 flex items-center gap-2">
               <mat-icon class="text-amber-500">warning</mat-icon>
-              Early Warning Alerts
+              Erta ogohlantirishlar
             </h3>
             <div class="space-y-4">
               <div class="p-4 bg-red-50 border border-red-100 rounded-2xl">
