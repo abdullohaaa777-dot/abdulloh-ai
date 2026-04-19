@@ -22,8 +22,21 @@ import { MatIconModule } from '@angular/material/icon';
             <mat-icon class="text-white text-5xl h-12 w-12">health_and_safety</mat-icon>
           </div>
           <h1 class="text-4xl font-extrabold text-medical-text tracking-tight">Abdulloh AI</h1>
-          <p class="text-medical-text-muted mt-2 font-medium">Klinik qaror qabul qilish tizimi</p>
-          <p class="text-xs text-medical-primary/70 font-semibold tracking-[0.18em] uppercase mt-3">Secure Clinical Access</p>
+          <p class="text-medical-text mt-2 font-semibold text-lg">{{ isLogin() ? 'Tibbiy tahlilning yangi darajasiga xush kelibsiz' : 'Aqlli klinik makoningizni hoziroq ishga tushiring' }}</p>
+          <p class="text-sm text-medical-text-muted mt-2 font-medium">Sun’iy intellekt yordamida signal, simptom va klinik ehtimollarni yagona platformada boshqaring.</p>
+          <p class="text-xs text-medical-primary/70 font-semibold tracking-[0.18em] uppercase mt-3">Ishonchli kirish muhiti</p>
+        </div>
+
+        <div class="auth-visual mb-7 sm:mb-8">
+          <div class="auth-visual-ring"></div>
+          <div class="auth-visual-ring auth-visual-ring-slow"></div>
+          <div class="auth-visual-core">
+            <mat-icon class="text-medical-primary">monitor_heart</mat-icon>
+          </div>
+          <div class="auth-visual-line"></div>
+          <p class="relative z-10 text-xs sm:text-sm font-semibold text-medical-text text-center mt-5">
+            Har bir kirish — chuqurroq tahlil, aniqroq klinik qaror sari qadam.
+          </p>
         </div>
 
         <form [formGroup]="authForm" (ngSubmit)="onSubmit()" class="space-y-4 sm:space-y-5">
@@ -44,7 +57,7 @@ import { MatIconModule } from '@angular/material/icon';
           <div class="space-y-2">
             <div class="flex items-center justify-between gap-3">
               <label for="password" class="block text-sm font-semibold text-medical-text">Parol</label>
-              <span class="text-[11px] text-medical-text-muted font-medium">Kamida 6 ta belgi</span>
+              <span class="text-[11px] text-medical-text-muted font-medium">Kamida 6 ta belgi talab qilinadi</span>
             </div>
             <div class="auth-input-shell">
               <mat-icon class="auth-input-icon">lock</mat-icon>
@@ -114,6 +127,64 @@ import { MatIconModule } from '@angular/material/icon';
 
     .auth-input-shell {
       position: relative;
+    }
+
+    .auth-visual {
+      position: relative;
+      border-radius: 1rem;
+      border: 1px solid rgba(79, 70, 229, 0.16);
+      background: linear-gradient(140deg, rgba(79, 70, 229, 0.08), rgba(14, 165, 233, 0.08));
+      padding: 1rem 1rem 0.9rem;
+      overflow: hidden;
+      box-shadow: inset 0 0 35px rgba(79, 70, 229, 0.08);
+    }
+
+    .auth-visual-core {
+      position: relative;
+      z-index: 2;
+      width: 2.6rem;
+      height: 2.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 70, 229, 0.28);
+      background: rgba(255, 255, 255, 0.85);
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      box-shadow: 0 10px 18px -13px rgba(79, 70, 229, 0.8);
+    }
+
+    .auth-visual-ring {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 6.6rem;
+      height: 6.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(79, 70, 229, 0.25);
+      animation: authRotate 12s linear infinite;
+      top: -1.5rem;
+      opacity: 0.75;
+    }
+
+    .auth-visual-ring-slow {
+      width: 8rem;
+      height: 8rem;
+      border-style: dashed;
+      border-color: rgba(14, 165, 233, 0.3);
+      animation-duration: 22s;
+      animation-direction: reverse;
+      top: -2.2rem;
+      opacity: 0.5;
+    }
+
+    .auth-visual-line {
+      position: absolute;
+      left: -8%;
+      right: -8%;
+      top: 48%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.6), rgba(14, 165, 233, 0.6), transparent);
+      animation: authPulse 3s ease-in-out infinite;
     }
 
     .auth-input {
@@ -194,6 +265,16 @@ import { MatIconModule } from '@angular/material/icon';
     @keyframes authFloat {
       0%, 100% { transform: translate3d(0, 0, 0); }
       50% { transform: translate3d(0, -12px, 0); }
+    }
+
+    @keyframes authRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes authPulse {
+      0%, 100% { opacity: 0.25; transform: scaleX(0.9); }
+      50% { opacity: 0.85; transform: scaleX(1.02); }
     }
 
     @media (max-width: 640px) {

@@ -16,13 +16,13 @@ import { RouterModule } from '@angular/router';
         <div class="absolute right-12 bottom-2 w-20 h-20 rounded-full bg-sky-200/50 blur-2xl pointer-events-none"></div>
         <div class="relative flex items-start justify-between gap-4">
           <div>
-            <p class="text-[11px] font-extrabold tracking-[0.24em] text-medical-primary/70 uppercase mb-2">Clinical Intelligence</p>
+            <p class="text-[11px] font-extrabold tracking-[0.24em] text-medical-primary/70 uppercase mb-2">Klinik intellekt maydoni</p>
             <h2 class="text-3xl font-extrabold text-medical-text tracking-tight">Bemorlar holatlari</h2>
-            <p class="text-medical-text-muted font-medium">Barcha saqlangan tahlillar ro'yxati</p>
+            <p class="text-medical-text-muted font-medium">Har bir yozuv — keyingi klinik qaror uchun aniq tayanch nuqta</p>
           </div>
           <div class="hidden md:flex items-center gap-2 rounded-2xl border border-medical-primary/20 px-4 py-2 bg-white/75 backdrop-blur-sm">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="text-xs font-semibold text-medical-text-muted">Live monitoring active</span>
+            <span class="text-xs font-semibold text-medical-text-muted">Jonli monitoring faol</span>
           </div>
         </div>
       </div>
@@ -30,7 +30,7 @@ import { RouterModule } from '@angular/router';
       <div class="flex items-center justify-between mb-10">
         <div>
           <h3 class="text-xl md:text-2xl font-bold text-medical-text tracking-tight">Klinik holatlar paneli</h3>
-          <p class="text-medical-text-muted font-medium text-sm md:text-base">Kuzatuv va tahlil uchun barcha bemor yozuvlari</p>
+          <p class="text-medical-text-muted font-medium text-sm md:text-base">Sun’iy intellekt asosidagi kuzatuv uchun tayyorlangan bemor yozuvlari</p>
         </div>
         <a routerLink="/new-case" class="btn-primary px-6 py-3">
           <mat-icon>add</mat-icon>

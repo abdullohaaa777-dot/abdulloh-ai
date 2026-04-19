@@ -107,6 +107,13 @@ import { Router, RouterModule } from '@angular/router';
         <div class="hud-ring hud-ring-slow w-72 h-72 top-1/3 -left-24 opacity-40 pointer-events-none"></div>
         <div class="floating-medical-orb w-16 h-16 right-[14%] top-24 opacity-65 pointer-events-none"></div>
         <div class="floating-medical-orb w-10 h-10 right-[26%] bottom-[18%] opacity-60 pointer-events-none" style="animation-delay: -2s"></div>
+        <section class="medical-depth-card relative overflow-hidden p-5 md:p-6 mb-6">
+          <div class="absolute -right-8 top-2 w-28 h-28 rounded-full bg-sky-200/45 blur-2xl pointer-events-none"></div>
+          <div class="absolute -left-8 -bottom-5 w-24 h-24 rounded-full bg-indigo-200/45 blur-2xl pointer-events-none"></div>
+          <p class="text-[11px] font-black uppercase tracking-[0.16em] text-medical-primary/75 mb-2">Klinik boshqaruv markazi</p>
+          <h2 class="text-xl md:text-2xl font-extrabold text-medical-text tracking-tight">Bugungi klinik tahlillar shu makonda jamlanadi</h2>
+          <p class="text-sm md:text-base text-medical-text-muted mt-2 max-w-3xl">Signal, vizual ma’lumot va sun’iy intellekt xulosalarini bir oqimda kuzating, talqin qiling va keyingi bosqichni aniq belgilang.</p>
+        </section>
         <router-outlet></router-outlet>
       </main>
     </div>
