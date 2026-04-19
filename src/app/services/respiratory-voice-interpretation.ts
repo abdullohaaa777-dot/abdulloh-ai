@@ -164,7 +164,7 @@ Qattiq JSON format:
         'Anketa natijalarida simptom yuklamasi yuqori bo\'lsa concern indeksi oshadi.'
       ],
       skriningXavfDarajasi: riskLevel,
-      normagaYaqinlikBahosi: `Normaga yaqinlik taxminan ${Math.max(5, 100 - risk)}% atrofida (skrining bo\'yicha).`,
+      normagaYaqinlikBahosi: `Normaga yaqinlik taxminan ${Math.max(5, 100 - risk)}% atrofida (skrining bo'yicha).`,
       chuqurTavsiyalar: [
         'Kuniga 2-3 marta nazoratli diafragmal nafas mashqlari (4-2-6 ritm) bajaring.',
         'Uyqudan oldin 10 daqiqa sekin pacing bilan nafasni tinchlantiring.',

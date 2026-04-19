@@ -400,8 +400,7 @@ export class RespiratoryVoiceComponent implements OnDestroy {
     this.waveform = [];
     this.motionSeries = [];
 
-    for (let i = 0; i < this.tests.length; i++) {
-      const test = this.tests[i];
+    for (const test of this.tests) {
       this.activeTest.set(test);
       this.liveHint.set(test.liveHints[0] || 'Test davom etmoqda');
       await this.runSingleTest(test);
