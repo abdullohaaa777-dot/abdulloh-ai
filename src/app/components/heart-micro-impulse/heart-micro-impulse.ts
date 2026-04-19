@@ -63,7 +63,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         </div>
       } @else if (scanMode() === 'cardio-provocation') {
         <div class="mt-3 text-sm p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-800">
-          CardioProvocation Twin: baseline → sekin nafas provokatsiyasi → (ixtiyoriy) qisqa breath-hold → recovery fazalarida javob/tiklanish tahlili.
+          CardioProvocation Twin: boshlang‘ich holat → sekin nafas qo‘zg‘atish bosqichi → (ixtiyoriy) qisqa nafasni ushlab turish → tiklanish bosqichida javob tahlili.
         </div>
       }
       <div class="mt-4 flex gap-2">
@@ -99,9 +99,9 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <p class="text-sm">Tracking aniqligi: <strong>{{ trackingConfidence() }}%</strong></p>
           <p class="text-sm">Kontur ishonchliligi (kiyim ta’siri): <strong>{{ clothingReliability() }}%</strong></p>
         } @else if (scanMode() === 'cardio-provocation') {
-          <p class="text-sm">Protocol fazasi: <strong>{{ provocationPhaseLabel() }}</strong></p>
+          <p class="text-sm">Protokol bosqichi: <strong>{{ provocationPhaseLabel() }}</strong></p>
           @if (provocationPhase() === 'hold') {
-            <button class="btn-secondary w-full text-sm" (click)="skipOptionalHold()">Breath-holdni o‘tkazib yuborish</button>
+            <button class="btn-secondary w-full text-sm" (click)="skipOptionalHold()">Nafasni ushlab turish bosqichini o‘tkazib yuborish</button>
           }
         }
         @if (isReady()) {
@@ -138,7 +138,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <div class="p-3 rounded-xl border bg-slate-50"><p class="text-xs">Umumiy yurak xavfi</p><p class="text-2xl font-black text-rose-600">{{ overallRisk(r) }}%</p></div>
           <div class="p-3 rounded-xl border bg-slate-50"><p class="text-xs">Signal sifati</p><p class="text-2xl font-black">{{ r.features.signalQuality }}%</p></div>
           <div class="p-3 rounded-xl border bg-slate-50"><p class="text-xs">Ishonchlilik</p><p class="text-2xl font-black">{{ r.features.confidence }}%</p></div>
-          <div class="p-3 rounded-xl border bg-slate-50"><p class="text-xs">Urgency</p><p class="text-2xl font-black">{{ r.features.urgency }}%</p></div>
+          <div class="p-3 rounded-xl border bg-slate-50"><p class="text-xs">Shoshilinchlik</p><p class="text-2xl font-black">{{ r.features.urgency }}%</p></div>
         </div>
 
         <div class="p-4 rounded-2xl border bg-indigo-50/40">
@@ -162,7 +162,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
             <div class="w-28 h-28 rounded-full mx-auto mt-3" [style.background]="diagDonut(r.topDiagnoses)"></div>
           </div>
           <div class="p-4 rounded-2xl border">
-            <h4 class="font-black">Confidence gauge</h4>
+            <h4 class="font-black">Ishonchlilik ko‘rsatkichi</h4>
             <div class="mt-4 h-16 rounded-t-full" [style.background]="semiGauge(r.features.confidence)"></div>
             <p class="text-center font-black mt-1">{{ r.features.confidence }}%</p>
           </div>
@@ -178,7 +178,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
             <svg viewBox="0 0 420 120" class="w-full h-28 mt-2"><polyline [attr.points]="wavePoints(r.motionTrace)" fill="none" stroke="#0ea5e9" stroke-width="2.5"></polyline></svg>
           </div>
           <div class="p-4 rounded-2xl border lg:col-span-2">
-            <h4 class="font-black">Electromechanical phase timeline</h4>
+            <h4 class="font-black">Elektromexanik faza vaqt chizig‘i</h4>
             <svg viewBox="0 0 420 60" class="w-full h-16 mt-2">
               <line x1="0" y1="30" x2="420" y2="30" stroke="#94a3b8" stroke-width="2"></line>
               <circle [attr.cx]="(r.features.electromechanicalTimingProxy/100)*420" cy="30" r="8" fill="#7c3aed"></circle>
@@ -196,8 +196,8 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <div class="p-4 border rounded-2xl"><h4 class="font-black">Molekulyar mexanizm</h4><ul class="list-disc pl-5">@for (x of r.narrative.molekulyarMexanizm; track x) {<li>{{ x }}</li>}</ul></div>
           <div class="p-4 border rounded-2xl"><h4 class="font-black">Biofizik mexanizm</h4><ul class="list-disc pl-5">@for (x of r.narrative.biofizikMexanizm; track x) {<li>{{ x }}</li>}</ul></div>
           <div class="p-4 border rounded-2xl"><h4 class="font-black">Biokimyoviy mexanizm</h4><ul class="list-disc pl-5">@for (x of r.narrative.biokimyoviyMexanizm; track x) {<li>{{ x }}</li>}</ul></div>
-          <div class="p-4 border rounded-2xl"><h4 class="font-black">Clinical interpretation</h4><ul class="list-disc pl-5">@for (x of r.narrative.klinikInterpretatsiya; track x) {<li>{{ x }}</li>}</ul></div>
-          <div class="p-4 border rounded-2xl"><h4 class="font-black">Recommended next steps</h4><ul class="list-disc pl-5">@for (x of r.narrative.keyingiQadamlar; track x) {<li>{{ x }}</li>}</ul></div>
+          <div class="p-4 border rounded-2xl"><h4 class="font-black">Klinik talqin</h4><ul class="list-disc pl-5">@for (x of r.narrative.klinikInterpretatsiya; track x) {<li>{{ x }}</li>}</ul></div>
+          <div class="p-4 border rounded-2xl"><h4 class="font-black">Tavsiya etiladigan keyingi qadamlar</h4><ul class="list-disc pl-5">@for (x of r.narrative.keyingiQadamlar; track x) {<li>{{ x }}</li>}</ul></div>
           <div class="p-4 border rounded-2xl"><h4 class="font-black">Sodda izoh</h4><ul class="list-disc pl-5">@for (x of r.narrative.soddaIzoh; track x) {<li>{{ x }}</li>}</ul></div>
           <div class="p-4 border rounded-2xl"><h4 class="font-black">Chuqur ilmiy izoh</h4><ul class="list-disc pl-5">@for (x of r.narrative.chuqurIlmiyIzoh; track x) {<li>{{ x }}</li>}</ul></div>
         </div>
@@ -210,16 +210,16 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         @if (r.scanMode === 'cardio-provocation') {
           @if (r.cardioProvocation; as cp) {
             <div class="p-4 border rounded-2xl bg-rose-50/40">
-              <h4 class="font-black">CardioProvocation Twin: fazalararo javob profili</h4>
+              <h4 class="font-black">CardioProvocation Twin: bosqichlararo javob profili</h4>
               <div class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
-                <div class="p-3 rounded-xl border bg-white"><p>Cardiac Reserve Score</p><p class="text-2xl font-black text-emerald-600">{{ cp.cardiacReserveScore }}%</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Recovery Time</p><p class="text-2xl font-black text-indigo-600">{{ cp.provokedMechanicalRecoveryTime }}s</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Autonomic Recovery Slope</p><p class="text-2xl font-black text-sky-600">{{ cp.autonomicRecoverySlope }}%</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Hidden Decompensation Risk</p><p class="text-2xl font-black text-rose-600">{{ cp.hiddenDecompensationRisk }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Yurak zaxira ko‘rsatkichi</p><p class="text-2xl font-black text-emerald-600">{{ cp.cardiacReserveScore }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Qo‘zg‘atilgan mexanik tiklanish vaqti</p><p class="text-2xl font-black text-indigo-600">{{ cp.provokedMechanicalRecoveryTime }}s</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Avtonom tiklanish sur’ati</p><p class="text-2xl font-black text-sky-600">{{ cp.autonomicRecoverySlope }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Yashirin dekompensatsiya xavfi</p><p class="text-2xl font-black text-rose-600">{{ cp.hiddenDecompensationRisk }}%</p></div>
               </div>
               <div class="grid lg:grid-cols-2 gap-4 mt-4">
                 <div class="p-3 rounded-xl border bg-white">
-                  <h5 class="font-black text-sm">Baseline / Provocation / Recovery waveform</h5>
+                  <h5 class="font-black text-sm">Boshlang‘ich / qo‘zg‘atilgan / tiklanish to‘lqin taqqoslanishi</h5>
                   <svg viewBox="0 0 420 120" class="w-full h-28 mt-2">
                     <polyline [attr.points]="wavePoints(cp.baselineWaveform)" fill="none" stroke="#10b981" stroke-width="2"></polyline>
                     <polyline [attr.points]="wavePoints(cp.provocationWaveform)" fill="none" stroke="#f97316" stroke-width="2"></polyline>
@@ -227,7 +227,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
                   </svg>
                 </div>
                 <div class="p-3 rounded-xl border bg-white">
-                  <h5 class="font-black text-sm">Recovery slope va adaptatsiya trendi</h5>
+                  <h5 class="font-black text-sm">Tiklanish sur’ati va moslashuv trendi</h5>
                   <svg viewBox="0 0 420 120" class="w-full h-28 mt-2">
                     <polyline [attr.points]="provocationTrendPoints(cp)" fill="none" stroke="#e11d48" stroke-width="2.2"></polyline>
                   </svg>
@@ -235,10 +235,10 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
                 </div>
               </div>
               <div class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
-                <div class="p-3 rounded-xl border bg-white"><p>Respiratory-Cardiac Coupling</p><p class="font-black">{{ cp.respiratoryCardiacCouplingFlexibility }}%</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Load Adaptation Score</p><p class="font-black">{{ cp.loadAdaptationScore }}%</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Recovery Stability Index</p><p class="font-black">{{ cp.recoveryStabilityIndex }}%</p></div>
-                <div class="p-3 rounded-xl border bg-white"><p>Response Balance</p><p class="font-black">{{ cp.provocationResponseBalance }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Nafas-yurak bog‘lanish moslashuvchanligi</p><p class="font-black">{{ cp.respiratoryCardiacCouplingFlexibility }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Yuklamaga moslashuv ko‘rsatkichi</p><p class="font-black">{{ cp.loadAdaptationScore }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Tiklanish barqarorligi indeksi</p><p class="font-black">{{ cp.recoveryStabilityIndex }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Qo‘zg‘atishga javob muvozanati</p><p class="font-black">{{ cp.provocationResponseBalance }}%</p></div>
               </div>
             </div>
           }
@@ -455,16 +455,16 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   }
 
   startButtonLabel(): string {
-    if (this.scanMode() === 'cardio-provocation') return 'CardioProvocation Twin protokoli (≈25s)';
+    if (this.scanMode() === 'cardio-provocation') return 'CardioProvocation Twin protokolini boshlash (≈25s)';
     return this.isReady() ? 'Avtomatik capture (25s)' : 'Baribir testni boshlash (25s)';
   }
 
   provocationPhaseLabel(): string {
     const p = this.provocationPhase();
-    if (p === 'baseline') return 'Baseline';
-    if (p === 'breathing') return 'Sekin nafas';
-    if (p === 'hold') return 'Qisqa breath-hold (ixtiyoriy)';
-    if (p === 'recovery') return 'Recovery';
+    if (p === 'baseline') return 'Boshlang‘ich holat';
+    if (p === 'breathing') return 'Sekin nafas bosqichi';
+    if (p === 'hold') return 'Qisqa nafasni ushlab turish (ixtiyoriy)';
+    if (p === 'recovery') return 'Tiklanish bosqichi';
     if (p === 'done') return 'Yakunlandi';
     return 'Boshlanmagan';
   }
@@ -536,9 +536,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
 
   private updateProvocationGuide(phase: 'baseline' | 'breathing' | 'hold' | 'recovery') {
     this.provocationPhase.set(phase);
-    if (phase === 'baseline') this.liveGuide.set('Tayyor holatda turing, normal nafas oling (baseline).');
+    if (phase === 'baseline') this.liveGuide.set('Tayyor holatda turing, normal nafas oling. Boshlang‘ich holat yozilmoqda.');
     if (phase === 'breathing') this.liveGuide.set('Chuqur va sekin nafas oling, ritmni barqaror saqlang.');
-    if (phase === 'hold') this.liveGuide.set('Nafasni qisqa ushlab turing (ixtiyoriy). Noqulaylik bo‘lsa o‘tkazib yuboring.');
+    if (phase === 'hold') this.liveGuide.set('Nafasni qisqa ushlab turing (ixtiyoriy). Noqulaylik bo‘lsa bu bosqichni o‘tkazib yuboring.');
     if (phase === 'recovery') this.liveGuide.set('Endi odatiy nafasga qayting, tiklanish bosqichi kuzatilmoqda.');
   }
 
