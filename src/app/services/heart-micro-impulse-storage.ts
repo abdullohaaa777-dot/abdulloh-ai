@@ -54,12 +54,29 @@ export interface HeartMicroImpulseSession {
   topDiagnoses: DiagnosisProb[];
   mainDiagnosis: DiagnosisProb;
   narrative: HeartMicroImpulseNarrative;
-  scanMode?: 'standard' | 'topography';
+  scanMode?: 'standard' | 'topography' | 'cardio-provocation';
   topographyGrid?: number[];
   heartVisualProfile?: {
     pulseLevel: number;
     leftRightBias: number;
     kineticDelay: number;
+  };
+  cardioProvocation?: {
+    phaseTimeline: { phase: 'baseline' | 'breathing' | 'hold' | 'recovery'; seconds: number; skipped?: boolean }[];
+    baselineWaveform: number[];
+    provocationWaveform: number[];
+    recoveryWaveform: number[];
+    baselineMotion: number[];
+    provocationMotion: number[];
+    recoveryMotion: number[];
+    cardiacReserveScore: number;
+    provokedMechanicalRecoveryTime: number;
+    autonomicRecoverySlope: number;
+    respiratoryCardiacCouplingFlexibility: number;
+    loadAdaptationScore: number;
+    hiddenDecompensationRisk: number;
+    recoveryStabilityIndex: number;
+    provocationResponseBalance: number;
   };
 }
 
@@ -140,6 +157,23 @@ export class HeartMicroImpulseStorageService {
         pulseLevel: 50,
         leftRightBias: 0,
         kineticDelay: 30
+      },
+      cardioProvocation: x.cardioProvocation || {
+        phaseTimeline: [],
+        baselineWaveform: [],
+        provocationWaveform: [],
+        recoveryWaveform: [],
+        baselineMotion: [],
+        provocationMotion: [],
+        recoveryMotion: [],
+        cardiacReserveScore: 50,
+        provokedMechanicalRecoveryTime: 20,
+        autonomicRecoverySlope: 50,
+        respiratoryCardiacCouplingFlexibility: 50,
+        loadAdaptationScore: 50,
+        hiddenDecompensationRisk: 30,
+        recoveryStabilityIndex: 50,
+        provocationResponseBalance: 50
       }
     };
   }

@@ -12,7 +12,7 @@ export class HeartMicroImpulseInterpretationService {
     ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
     : null;
 
-  async interpret(features: HeartMicroImpulseFeatures, topDiagnoses: DiagnosisProb[], main: DiagnosisProb, scanMode: 'standard' | 'topography' = 'standard'): Promise<HeartMicroImpulseNarrative> {
+  async interpret(features: HeartMicroImpulseFeatures, topDiagnoses: DiagnosisProb[], main: DiagnosisProb, scanMode: 'standard' | 'topography' | 'cardio-provocation' = 'standard'): Promise<HeartMicroImpulseNarrative> {
     const local = this.localNarrative(features, topDiagnoses, main);
     if (!this.ai) return local;
 

@@ -42,6 +42,14 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         >
           Prekordial Rezonans Topografiya
         </button>
+        <button
+          class="px-3 py-2 rounded-lg text-sm font-semibold"
+          [class.bg-white]="scanMode() === 'cardio-provocation'"
+          [class.shadow-sm]="scanMode() === 'cardio-provocation'"
+          (click)="scanMode.set('cardio-provocation')"
+        >
+          CardioProvocation Twin
+        </button>
       </div>
       <ol class="list-decimal pl-5 text-sm mt-3 space-y-1">
         <li>Ko‘krak sohasi kameraga markazda tushsin (asosiy zona).</li>
@@ -52,6 +60,10 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
       @if (scanMode() === 'topography') {
         <div class="mt-3 text-sm p-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-800">
           Topografiya rejimi: target zona avval aniqlanadi, so‘ng anatomik overlay va individual yurak modeli quriladi.
+        </div>
+      } @else if (scanMode() === 'cardio-provocation') {
+        <div class="mt-3 text-sm p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-800">
+          CardioProvocation Twin: baseline → sekin nafas provokatsiyasi → (ixtiyoriy) qisqa breath-hold → recovery fazalarida javob/tiklanish tahlili.
         </div>
       }
       <div class="mt-4 flex gap-2">
@@ -86,6 +98,11 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
         @if (scanMode() === 'topography') {
           <p class="text-sm">Tracking aniqligi: <strong>{{ trackingConfidence() }}%</strong></p>
           <p class="text-sm">Kontur ishonchliligi (kiyim ta’siri): <strong>{{ clothingReliability() }}%</strong></p>
+        } @else if (scanMode() === 'cardio-provocation') {
+          <p class="text-sm">Protocol fazasi: <strong>{{ provocationPhaseLabel() }}</strong></p>
+          @if (provocationPhase() === 'hold') {
+            <button class="btn-secondary w-full text-sm" (click)="skipOptionalHold()">Breath-holdni o‘tkazib yuborish</button>
+          }
         }
         @if (isReady()) {
           <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-semibold">
@@ -98,7 +115,7 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
             <p class="mt-1 font-semibold">Joylashuvni yaxshilang yoki baribir testni boshlang.</p>
           </div>
         }
-        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording()">{{ isReady() ? 'Avtomatik capture (25s)' : 'Baribir testni boshlash (25s)' }}</button>
+        <button class="btn-primary w-full" (click)="startRecording()" [disabled]="!captureReady() || isRecording()">{{ isReady() ? startButtonLabel() : 'Signal past bo‘lsa ham davom etish' }}</button>
       </div>
     </section>
 
@@ -189,6 +206,43 @@ import { HeartMicroImpulseInterpretationService } from '../../services/heart-mic
           <h4 class="font-black">O‘ta chuqur mexanistik izoh</h4>
           <ul class="list-disc pl-5">@for (x of r.narrative.otaChuqurMexanistikIzoh; track x) {<li>{{ x }}</li>}</ul>
         </div>
+
+        @if (r.scanMode === 'cardio-provocation') {
+          @if (r.cardioProvocation; as cp) {
+            <div class="p-4 border rounded-2xl bg-rose-50/40">
+              <h4 class="font-black">CardioProvocation Twin: fazalararo javob profili</h4>
+              <div class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
+                <div class="p-3 rounded-xl border bg-white"><p>Cardiac Reserve Score</p><p class="text-2xl font-black text-emerald-600">{{ cp.cardiacReserveScore }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Recovery Time</p><p class="text-2xl font-black text-indigo-600">{{ cp.provokedMechanicalRecoveryTime }}s</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Autonomic Recovery Slope</p><p class="text-2xl font-black text-sky-600">{{ cp.autonomicRecoverySlope }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Hidden Decompensation Risk</p><p class="text-2xl font-black text-rose-600">{{ cp.hiddenDecompensationRisk }}%</p></div>
+              </div>
+              <div class="grid lg:grid-cols-2 gap-4 mt-4">
+                <div class="p-3 rounded-xl border bg-white">
+                  <h5 class="font-black text-sm">Baseline / Provocation / Recovery waveform</h5>
+                  <svg viewBox="0 0 420 120" class="w-full h-28 mt-2">
+                    <polyline [attr.points]="wavePoints(cp.baselineWaveform)" fill="none" stroke="#10b981" stroke-width="2"></polyline>
+                    <polyline [attr.points]="wavePoints(cp.provocationWaveform)" fill="none" stroke="#f97316" stroke-width="2"></polyline>
+                    <polyline [attr.points]="wavePoints(cp.recoveryWaveform)" fill="none" stroke="#3b82f6" stroke-width="2"></polyline>
+                  </svg>
+                </div>
+                <div class="p-3 rounded-xl border bg-white">
+                  <h5 class="font-black text-sm">Recovery slope va adaptatsiya trendi</h5>
+                  <svg viewBox="0 0 420 120" class="w-full h-28 mt-2">
+                    <polyline [attr.points]="provocationTrendPoints(cp)" fill="none" stroke="#e11d48" stroke-width="2.2"></polyline>
+                  </svg>
+                  <p class="text-xs text-medical-text-muted mt-1">Qizil chiziq keskin bo‘lsa provokatsiya javobi notekis; silliq pasayish tiklanish yaxshiroq ekanini bildiradi.</p>
+                </div>
+              </div>
+              <div class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
+                <div class="p-3 rounded-xl border bg-white"><p>Respiratory-Cardiac Coupling</p><p class="font-black">{{ cp.respiratoryCardiacCouplingFlexibility }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Load Adaptation Score</p><p class="font-black">{{ cp.loadAdaptationScore }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Recovery Stability Index</p><p class="font-black">{{ cp.recoveryStabilityIndex }}%</p></div>
+                <div class="p-3 rounded-xl border bg-white"><p>Response Balance</p><p class="font-black">{{ cp.provocationResponseBalance }}%</p></div>
+              </div>
+            </div>
+          }
+        }
 
         @if (r.scanMode === 'topography') {
           <div class="grid lg:grid-cols-2 gap-4">
@@ -315,7 +369,8 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   overlayTracked = signal(false);
   trackingConfidence = signal(0);
   clothingReliability = signal(70);
-  scanMode = signal<'standard' | 'topography'>('standard');
+  scanMode = signal<'standard' | 'topography' | 'cardio-provocation'>('standard');
+  provocationPhase = signal<'idle' | 'baseline' | 'breathing' | 'hold' | 'recovery' | 'done'>('idle');
   latest = signal<HeartMicroImpulseSession | null>(null);
   pipelineActive = signal(false);
   activePipelineStep = signal('');
@@ -336,9 +391,15 @@ export class HeartMicroImpulseComponent implements OnDestroy {
   private timer: number | null = null;
   private qcTimer: number | null = null;
   private rafId: number | null = null;
+  private protocolSeq: { phase: 'baseline' | 'breathing' | 'hold' | 'recovery'; seconds: number; optional?: boolean }[] = [];
+  private protocolIndex = 0;
+  private protocolTick = 0;
+  private skipHoldRequested = false;
   private prevFrame: Uint8ClampedArray | null = null;
   private waveform: number[] = [];
   private motionTrace: number[] = [];
+  private phaseWaveforms: Record<'baseline' | 'breathing' | 'hold' | 'recovery', number[]> = { baseline: [], breathing: [], hold: [], recovery: [] };
+  private phaseMotions: Record<'baseline' | 'breathing' | 'hold' | 'recovery', number[]> = { baseline: [], breathing: [], hold: [], recovery: [] };
   private torsoPose = { cx: 0.5, cy: 0.58, scale: 1, tilt: 0 };
   private isPreviewMirrored = true;
 
@@ -362,10 +423,15 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     this.cleanup();
     this.captureReady.set(false);
     this.isRecording.set(false);
+    this.provocationPhase.set('idle');
   }
 
   async startRecording() {
     if (!this.captureReady() || this.isRecording()) return;
+    if (this.scanMode() === 'cardio-provocation') {
+      await this.startCardioProvocationProtocol();
+      return;
+    }
     this.isRecording.set(true);
     this.waveform = [];
     this.motionTrace = [];
@@ -386,6 +452,94 @@ export class HeartMicroImpulseComponent implements OnDestroy {
         await this.runPipelineAndGenerate();
       }
     }, 1000);
+  }
+
+  startButtonLabel(): string {
+    if (this.scanMode() === 'cardio-provocation') return 'CardioProvocation Twin protokoli (≈25s)';
+    return this.isReady() ? 'Avtomatik capture (25s)' : 'Baribir testni boshlash (25s)';
+  }
+
+  provocationPhaseLabel(): string {
+    const p = this.provocationPhase();
+    if (p === 'baseline') return 'Baseline';
+    if (p === 'breathing') return 'Sekin nafas';
+    if (p === 'hold') return 'Qisqa breath-hold (ixtiyoriy)';
+    if (p === 'recovery') return 'Recovery';
+    if (p === 'done') return 'Yakunlandi';
+    return 'Boshlanmagan';
+  }
+
+  skipOptionalHold() {
+    this.skipHoldRequested = true;
+  }
+
+  private async startCardioProvocationProtocol() {
+    this.isRecording.set(true);
+    this.waveform = [];
+    this.motionTrace = [];
+    this.phaseWaveforms = { baseline: [], breathing: [], hold: [], recovery: [] };
+    this.phaseMotions = { baseline: [], breathing: [], hold: [], recovery: [] };
+    this.protocolSeq = [
+      { phase: 'baseline', seconds: 6 },
+      { phase: 'breathing', seconds: 7 },
+      { phase: 'hold', seconds: 4, optional: true },
+      { phase: 'recovery', seconds: 8 }
+    ];
+    this.protocolIndex = 0;
+    this.protocolTick = 0;
+    this.skipHoldRequested = false;
+    this.timeLeft.set(this.protocolSeq.reduce((s, x) => s + x.seconds, 0));
+    this.progress.set(0);
+    this.updateProvocationGuide('baseline');
+
+    this.timer = window.setInterval(async () => {
+      const current = this.protocolSeq[this.protocolIndex];
+      if (!current) return;
+      if (current.phase === 'hold' && this.skipHoldRequested) {
+        this.protocolIndex += 1;
+        this.protocolTick = 0;
+        const next = this.protocolSeq[this.protocolIndex];
+        if (next) this.updateProvocationGuide(next.phase);
+        return;
+      }
+      this.provocationPhase.set(current.phase);
+      this.sampleSignals();
+      const wave = this.waveform[this.waveform.length - 1] ?? 0;
+      const mot = this.motionTrace[this.motionTrace.length - 1] ?? 0;
+      this.phaseWaveforms[current.phase].push(wave);
+      this.phaseMotions[current.phase].push(mot);
+      this.protocolTick += 1;
+      this.drawOverlay();
+
+      const doneSecs = this.protocolSeq
+        .slice(0, this.protocolIndex)
+        .reduce((s, x) => s + x.seconds, 0) + this.protocolTick;
+      const totalSecs = this.protocolSeq.reduce((s, x) => s + x.seconds, 0);
+      this.timeLeft.set(Math.max(0, totalSecs - doneSecs));
+      this.progress.set((doneSecs / totalSecs) * 100);
+
+      if (this.protocolTick >= current.seconds) {
+        this.protocolIndex += 1;
+        this.protocolTick = 0;
+        const next = this.protocolSeq[this.protocolIndex];
+        if (!next) {
+          if (this.timer) clearInterval(this.timer);
+          this.isRecording.set(false);
+          this.provocationPhase.set('done');
+          await this.runPipelineAndGenerate();
+          return;
+        }
+        this.updateProvocationGuide(next.phase);
+      }
+    }, 1000);
+  }
+
+  private updateProvocationGuide(phase: 'baseline' | 'breathing' | 'hold' | 'recovery') {
+    this.provocationPhase.set(phase);
+    if (phase === 'baseline') this.liveGuide.set('Tayyor holatda turing, normal nafas oling (baseline).');
+    if (phase === 'breathing') this.liveGuide.set('Chuqur va sekin nafas oling, ritmni barqaror saqlang.');
+    if (phase === 'hold') this.liveGuide.set('Nafasni qisqa ushlab turing (ixtiyoriy). Noqulaylik bo‘lsa o‘tkazib yuboring.');
+    if (phase === 'recovery') this.liveGuide.set('Endi odatiy nafasga qayting, tiklanish bosqichi kuzatilmoqda.');
   }
 
   private startQualityLoop() {
@@ -426,6 +580,9 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const narrative = await this.interpretationService.interpret(features, topDiagnoses, main, this.scanMode());
     const topographyGrid = this.scanMode() === 'topography' ? this.buildTopographyGrid(features) : [];
     const heartVisualProfile = this.buildHeartVisualProfile(features);
+    const cardioProvocation = this.scanMode() === 'cardio-provocation'
+      ? this.buildCardioProvocationMetrics(features)
+      : undefined;
 
     const session: HeartMicroImpulseSession = {
       id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `heart-${Date.now()}`,
@@ -439,7 +596,8 @@ export class HeartMicroImpulseComponent implements OnDestroy {
       narrative,
       scanMode: this.scanMode(),
       topographyGrid,
-      heartVisualProfile
+      heartVisualProfile,
+      cardioProvocation
     };
 
     this.storage.save(session);
@@ -478,13 +636,16 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     const topographyBoost = this.scanMode() === 'topography'
       ? (f.rezonansAsimmetriyaIndeksi * 0.25 + f.mexanikTarqalishKechikishi * 0.2 + f.prekordialDispersiyaSkori * 0.22)
       : 0;
+    const provocationBoost = this.scanMode() === 'cardio-provocation'
+      ? ((100 - f.cycleStabilityProxy) * 0.24 + f.autonomicStressProxy * 0.22 + f.mexanikTarqalishKechikishi * 0.2)
+      : 0;
     const raw = [
-      { name: 'Aritmiya yo‘nalishi', score: f.rhythmIrregularity * 1.2 + f.electromechanicalTimingProxy + topographyBoost * 0.22 },
-      { name: 'Yurak yetishmovchiligi yo‘nalishi', score: f.perfusionInstabilityProxy + (100 - f.cycleStabilityProxy) + f.motionEnergyAsymmetry * 0.8 + topographyBoost * 0.26 },
-      { name: 'Ishemik yurak kasalligi yo‘nalishi', score: f.vibroacousticResonanceShift + f.acousticTurbulence + f.autonomicStressProxy * 0.5 + topographyBoost * 0.3 },
+      { name: 'Aritmiya yo‘nalishi', score: f.rhythmIrregularity * 1.2 + f.electromechanicalTimingProxy + topographyBoost * 0.22 + provocationBoost * 0.28 },
+      { name: 'Yurak yetishmovchiligi yo‘nalishi', score: f.perfusionInstabilityProxy + (100 - f.cycleStabilityProxy) + f.motionEnergyAsymmetry * 0.8 + topographyBoost * 0.26 + provocationBoost * 0.22 },
+      { name: 'Ishemik yurak kasalligi yo‘nalishi', score: f.vibroacousticResonanceShift + f.acousticTurbulence + f.autonomicStressProxy * 0.5 + topographyBoost * 0.3 + provocationBoost * 0.18 },
       { name: 'Klapan patologiyasi yo‘nalishi', score: f.acousticTurbulence + f.chestMicroMotionAmplitude * 0.7 },
-      { name: 'Miokard disfunksiyasi yo‘nalishi', score: f.electromechanicalTimingProxy + f.perfusionInstabilityProxy + topographyBoost * 0.2 },
-      { name: 'Post-viral yurak zararlanishi', score: f.autonomicStressProxy + f.vibroacousticResonanceShift + topographyBoost * 0.12 },
+      { name: 'Miokard disfunksiyasi yo‘nalishi', score: f.electromechanicalTimingProxy + f.perfusionInstabilityProxy + topographyBoost * 0.2 + provocationBoost * 0.24 },
+      { name: 'Post-viral yurak zararlanishi', score: f.autonomicStressProxy + f.vibroacousticResonanceShift + topographyBoost * 0.12 + provocationBoost * 0.14 },
       { name: 'Vegetativ disbalans yo‘nalishi', score: f.autonomicStressProxy + (100 - f.signalQuality) }
     ].sort((a, b) => b.score - a.score).slice(0, 3);
 
@@ -824,6 +985,16 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     return '#22d3ee';
   }
 
+  provocationTrendPoints(cp: NonNullable<HeartMicroImpulseSession['cardioProvocation']>): string {
+    const series = [
+      this.avg(cp.baselineMotion),
+      this.avg(cp.provocationMotion),
+      this.avg(cp.recoveryMotion),
+      cp.recoveryStabilityIndex
+    ];
+    return series.map((v, i) => `${(i / (series.length - 1)) * 420},${110 - this.clamp(v, 1, 99)}`).join(' ');
+  }
+
   private buildTopographyGrid(features: HeartMicroImpulseFeatures): number[] {
     const base = [
       features.prekordialDispersiyaSkori * 0.9,
@@ -862,6 +1033,51 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     return this.clamp(base - sizePenalty - lightPenalty + 22, 1, 99);
   }
 
+  private buildCardioProvocationMetrics(features: HeartMicroImpulseFeatures): NonNullable<HeartMicroImpulseSession['cardioProvocation']> {
+    const baselineWave = this.phaseWaveforms.baseline;
+    const provWave = this.phaseWaveforms.breathing.concat(this.phaseWaveforms.hold);
+    const recoveryWave = this.phaseWaveforms.recovery;
+    const baselineMotion = this.phaseMotions.baseline;
+    const provMotion = this.phaseMotions.breathing.concat(this.phaseMotions.hold);
+    const recoveryMotion = this.phaseMotions.recovery;
+
+    const baselineStd = this.std(baselineWave.length ? baselineWave : [30]);
+    const provStd = this.std(provWave.length ? provWave : [35]);
+    const recStd = this.std(recoveryWave.length ? recoveryWave : [30]);
+    const provShift = provStd - baselineStd;
+    const recoveryGain = baselineStd - recStd;
+    const reserve = this.clamp(72 - provShift * 2 + recoveryGain * 3 + (features.signalQuality - 50) * 0.2, 1, 99);
+    const recoverySlope = this.clamp(55 + recoveryGain * 5 - Math.max(0, provShift) * 2, 1, 99);
+    const decompRisk = this.clamp(100 - reserve + Math.max(0, provShift * 3) + (features.autonomicStressProxy * 0.2), 1, 99);
+    const recoveryStability = this.clamp(65 + (baselineStd - Math.abs(recStd - baselineStd)) * 2 - this.std(recoveryMotion.length ? recoveryMotion : [20]), 1, 99);
+    const couplingFlex = this.clamp(68 - Math.abs(this.avg(provMotion) - this.avg(provWave)) * 0.8 + features.mikrosinxronlikIndeksi * 0.18, 1, 99);
+    const loadAdaptation = this.clamp((reserve * 0.45) + (recoverySlope * 0.3) + (couplingFlex * 0.25), 1, 99);
+    const responseBalance = this.clamp(100 - Math.abs(this.avg(provWave) - this.avg(recoveryWave)) * 1.1, 1, 99);
+
+    return {
+      phaseTimeline: [
+        { phase: 'baseline', seconds: 6 },
+        { phase: 'breathing', seconds: 7 },
+        { phase: 'hold', seconds: 4, skipped: this.phaseWaveforms.hold.length === 0 },
+        { phase: 'recovery', seconds: 8 }
+      ],
+      baselineWaveform: baselineWave,
+      provocationWaveform: provWave,
+      recoveryWaveform: recoveryWave,
+      baselineMotion,
+      provocationMotion: provMotion,
+      recoveryMotion,
+      cardiacReserveScore: reserve,
+      provokedMechanicalRecoveryTime: this.clamp(6 + Math.max(0, provShift * 1.8), 2, 45),
+      autonomicRecoverySlope: recoverySlope,
+      respiratoryCardiacCouplingFlexibility: couplingFlex,
+      loadAdaptationScore: loadAdaptation,
+      hiddenDecompensationRisk: decompRisk,
+      recoveryStabilityIndex: recoveryStability,
+      provocationResponseBalance: responseBalance
+    };
+  }
+
   private setupAudio(stream: MediaStream) {
     this.audioContext = new AudioContext();
     const src = this.audioContext.createMediaStreamSource(stream);
@@ -891,6 +1107,7 @@ export class HeartMicroImpulseComponent implements OnDestroy {
     this.audioContext = null;
     this.analyser = null;
     this.prevFrame = null;
+    this.provocationPhase.set('idle');
   }
 
   ngOnDestroy(): void {
