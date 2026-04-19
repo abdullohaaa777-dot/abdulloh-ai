@@ -58,8 +58,8 @@ import { MatIconModule } from '@angular/material/icon';
               <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-medical-primary to-indigo-500 rounded-2xl mb-4 shadow-[0_16px_28px_-18px_rgba(79,70,229,0.95)]">
                 <mat-icon class="text-white text-4xl h-10 w-10">health_and_safety</mat-icon>
               </div>
-              <h2 class="text-2xl font-extrabold text-medical-text">{{ isLogin() ? 'Kirish' : 'Ro‘yxatdan o‘tish' }}</h2>
-              <p class="text-sm text-medical-text-muted mt-2">{{ isLogin() ? 'Shaxsiy klinik boshqaruv maydoniga xavfsiz kiring' : 'Yangi profil ochib, tahlillarni markazlashtirilgan tarzda boshlang' }}</p>
+              <h2 class="text-2xl font-extrabold text-medical-text">Kirish</h2>
+              <p class="text-sm text-medical-text-muted mt-2">Shaxsiy klinik boshqaruv maydoniga xavfsiz kiring</p>
             </div>
 
             <form [formGroup]="authForm" (ngSubmit)="onSubmit()" class="space-y-4 sm:space-y-5">
@@ -116,7 +116,7 @@ import { MatIconModule } from '@angular/material/icon';
 
               <button type="submit" [disabled]="loading()" class="w-full btn-primary py-3.5 text-base mt-1 disabled:opacity-70 disabled:cursor-not-allowed">
                 @if (!loading()) {
-                  <span>{{ supabase.isConfigured() ? authButtonText : 'Demo rejimida kirish' }}</span>
+                  <span>{{ supabase.isConfigured() ? 'Xavfsiz kirish' : 'Demo rejimida kirish' }}</span>
                 }
                 @if (loading()) {
                   <mat-icon class="animate-spin">sync</mat-icon>
@@ -125,9 +125,7 @@ import { MatIconModule } from '@angular/material/icon';
             </form>
 
             <div class="mt-6 text-center border-t border-medical-border/70 pt-5">
-              <button (click)="toggleMode()" class="text-medical-primary hover:text-indigo-700 font-bold text-sm transition-colors hover:underline underline-offset-4">
-                {{ isLogin() ? 'Yangi hisob ochish' : 'Hisobingiz bormi? Kirish' }}
-              </button>
+              <p class="text-xs font-semibold text-medical-text-muted">Himoyalangan klinik kirish muhiti</p>
             </div>
           </div>
         </section>
