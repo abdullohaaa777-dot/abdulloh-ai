@@ -2,17 +2,21 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
 import { SupabaseService } from '../../services/supabase';
 import {
   SdhFeatureSet,
+  SdhFinalAnalysisResponse,
+  SdhFinalAnalysisSession,
   SdhInputSnapshot,
   SdhOrganRisk,
-  SdhAdvancedTestResult,
   SdhResult,
+  SdhTestCompletionState,
+  SdhTestCompletionStatus,
   SilentDiseaseHunterStorageService
 } from '../../services/silent-disease-hunter-storage';
 import { HandTrackerService, NormalizedHandLandmarkerResult } from '../../services/hand-tracker';
-import { SilentDiseaseHunterInterpretationService } from '../../services/silent-disease-hunter-interpretation';
+import { SdhFinalAnalysisPayload, SilentDiseaseHunterInterpretationService } from '../../services/silent-disease-hunter-interpretation';
 
 interface SdhPatientOption {
   id: string;
@@ -21,6 +25,7 @@ interface SdhPatientOption {
 
 type SdhAdvancedTestId = 'breathing' | 'facial' | 'hand' | 'voice' | 'cardiac';
 type SdhFeedbackTone = 'blue' | 'green' | 'yellow' | 'red';
+type SdhFinalAnalysisSource = 'auto' | 'manual';
 
 interface SdhProtocolStep {
   id: SdhAdvancedTestId;
@@ -84,7 +89,7 @@ interface SdhProtocolStep {
             <div class="flex flex-wrap gap-2">
               <button class="sdh-button-primary" (click)="sdhStartAutomaticProtocol()" [disabled]="sdhAdvancedRunning()">Avtomatik protokol</button>
               <button class="sdh-button-secondary" (click)="sdhStopAdvancedProtocol()" [disabled]="!sdhAdvancedRunning()">To‘xtatish</button>
-              <button class="sdh-button-secondary" (click)="sdhRunAdvancedAnalysis()">Yakuniy chuqur tahlil</button>
+              <button class="sdh-button-secondary" (click)="sdhRunFinalAnalysis({ source: 'manual', allowPartial: false })" [disabled]="sdhAnalysisLoading()">Tahlilni boshlash</button>
             </div>
           </div>
 
@@ -150,6 +155,78 @@ interface SdhProtocolStep {
             <div class="mt-5 rounded-2xl border border-amber-300/25 bg-amber-400/10 p-4 text-sm text-amber-100">{{ sdhAdvancedWarning() }}</div>
           }
 
+          @if (sdhPatientChoicePanel()) {
+            <div class="mt-5 rounded-3xl border border-cyan-300/25 bg-cyan-400/10 p-5 text-cyan-50">
+              <h3 class="font-black text-lg">Natijani bemor profiliga bog‘lash</h3>
+              <p class="text-sm mt-1 text-cyan-100/90">Natijani bemor profiliga bog‘lash uchun bemorni tanlang yoki mehmon sessiyasi sifatida davom eting.</p>
+              <div class="grid md:grid-cols-[1fr_auto_auto] gap-3 mt-4 items-center">
+                <select class="sdh-input" [(ngModel)]="sdhSelectedPatientId">
+                  <option value="umumiy">Mehmon sessiyasi</option>
+                  @for (patient of sdhPatients(); track patient.id) { <option [value]="patient.id">{{ patient.name }}</option> }
+                </select>
+                <button class="sdh-button-primary" (click)="sdhConfirmPatientAndRunAnalysis()" [disabled]="sdhAnalysisLoading()">Tanlangan profil bilan saqlash</button>
+                <button class="sdh-button-secondary" (click)="sdhContinueAsGuest()" [disabled]="sdhAnalysisLoading()">Mehmon sessiyasi</button>
+              </div>
+            </div>
+          }
+
+          @if (sdhAnalysisLoading()) {
+            <div class="sdh-analysis-loader mt-5 rounded-3xl border border-cyan-300/25 bg-slate-950/80 p-5">
+              <div class="flex items-center gap-3">
+                <div class="sdh-loader-ring"></div>
+                <div>
+                  <h3 class="font-black text-lg">Abdulloh AI chuqur tahlil qilmoqda...</h3>
+                  <p class="text-sm text-cyan-100">{{ sdhAnalysisLoadingStep() }}</p>
+                </div>
+              </div>
+              <div class="grid sm:grid-cols-5 gap-2 mt-4 text-xs text-slate-300">
+                @for (step of sdhLoadingSteps(); track step) { <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">{{ step }}</div> }
+              </div>
+            </div>
+          }
+
+          @if (sdhFinalAnalysisResult(); as finalSession) {
+            <section class="mt-5 rounded-3xl border border-emerald-300/20 bg-slate-950/85 p-5 space-y-5" id="sdh-final-result-panel">
+              @if (finalSession.emergencyWarning.active) {
+                <div class="rounded-2xl border border-red-400/30 bg-red-500/15 p-4 text-red-100 font-semibold">{{ finalSession.emergencyWarning.message }}</div>
+              }
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p class="text-xs uppercase tracking-[.22em] text-emerald-200">SILENT DISEASE HUNTER — YAKUNIY TAHLIL</p>
+                  <h2 class="text-2xl font-black mt-1">Abdulloh AI yakuniy natijasi</h2>
+                  <p class="text-sm text-slate-400">{{ finalSession.createdAt | date:'medium' }} · {{ finalSession.guestSession ? 'Mehmon sessiyasi' : sdhPatientName(finalSession.patientId || 'umumiy') }} · Dashboardga saqlandi</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button class="sdh-button-secondary" (click)="sdhRetryFinalAnalysis()" [disabled]="sdhAnalysisLoading()">Qayta AI tahlil qilish</button>
+                  <button class="sdh-button-primary" (click)="sdhGoToDashboard()">Dashboardga o‘tish</button>
+                </div>
+              </div>
+              <div class="grid sm:grid-cols-4 gap-3">
+                <div class="sdh-metric"><p>Umumiy risk</p><strong>{{ finalSession.finalAnalysis.overallRiskPercent }}%</strong></div>
+                <div class="sdh-metric"><p>Stabilitet</p><strong>{{ finalSession.finalAnalysis.overallStabilityPercent }}%</strong></div>
+                <div class="sdh-metric"><p>AI ishonchliligi</p><strong>{{ finalSession.finalAnalysis.confidencePercent }}%</strong></div>
+                <div class="sdh-metric"><p>Signal sifati</p><strong>{{ finalSession.signalQuality['overall'] }}%</strong></div>
+              </div>
+              <div class="grid lg:grid-cols-2 gap-4">
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Har test bo‘yicha score</h3>@for (row of sdhFinalTestRows(finalSession); track row.label) { <div class="mt-3"><div class="flex justify-between text-sm"><span>{{ row.label }}</span><span>{{ row.value }}%</span></div><div class="h-2 rounded-full bg-slate-800"><div class="h-full rounded-full bg-emerald-400" [style.width.%]="row.value"></div></div></div> }</div>
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Organlar bo‘yicha risk</h3>@for (row of sdhFinalOrganRows(finalSession); track row.label) { <div class="mt-3"><div class="flex justify-between text-sm"><span>{{ row.label }}</span><span>{{ row.value }}%</span></div><div class="h-2 rounded-full bg-slate-800"><div class="h-full rounded-full bg-cyan-400" [style.width.%]="row.value"></div></div></div> }</div>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+                <h3 class="font-black">Trend solishtirish</h3>
+                <p class="text-sm text-slate-300 mt-2">{{ sdhTrendArrow(finalSession.finalAnalysis.trendComparison.riskChange) }} {{ finalSession.finalAnalysis.trendComparison.summary }}</p>
+              </div>
+              <div class="grid lg:grid-cols-2 gap-4">
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Eng muhim topilmalar</h3><ul class="list-disc pl-5 text-sm mt-2 space-y-1">@for (finding of finalSession.finalAnalysis.mainFindings.slice(0, 5); track finding) { <li>{{ finding }}</li> }</ul></div>
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Tavsiyalar</h3><ul class="list-disc pl-5 text-sm mt-2 space-y-1">@for (rec of finalSession.recommendations; track rec) { <li>{{ rec }}</li> }</ul></div>
+              </div>
+              <div class="grid lg:grid-cols-2 gap-4">
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Bemor uchun sodda xulosa</h3><p class="text-sm text-slate-300 mt-2">{{ finalSession.patientSummary }}</p></div>
+                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4"><h3 class="font-black">Shifokor uchun professional xulosa</h3><p class="text-sm text-slate-300 mt-2">{{ finalSession.doctorSummary }}</p></div>
+              </div>
+              <div class="rounded-2xl border border-amber-300/25 bg-amber-400/10 p-4 text-sm text-amber-100">{{ finalSession.finalAnalysis.disclaimer }}</div>
+            </section>
+          }
+
           <div class="grid lg:grid-cols-3 gap-4 mt-5">
             <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <h3 class="font-black">Test scorelari</h3>
@@ -164,8 +241,8 @@ interface SdhProtocolStep {
               </div>
             </div>
             <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <h3 class="font-black">Gemini chuqur tahlil paneli</h3>
-              <p class="text-sm text-slate-300 mt-2">{{ sdhAdvancedAnalysis()?.umumiyFiziologikHolat || 'Yakuniy tahlil bosilganda markerlar Gemini servicega yuboriladi. Xom video/audio yuborilmaydi.' }}</p>
+              <h3 class="font-black">Abdulloh AI chuqur tahlil paneli</h3>
+              <p class="text-sm text-slate-300 mt-2">{{ sdhAdvancedAnalysis()?.umumiyFiziologikHolat || 'Yakuniy tahlil bosilganda markerlar Abdulloh AI oqimiga yuboriladi. Xom video/audio yuborilmaydi.' }}</p>
               <ul class="list-disc pl-5 text-sm text-slate-300 mt-3 space-y-1">
                 @for (finding of (sdhAdvancedAnalysis()?.engMuhimTopilmalar || []); track finding) { <li>{{ finding }}</li> }
               </ul>
@@ -388,6 +465,7 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   private sdhSupabase = inject(SupabaseService);
   private sdhHandTracker = inject(HandTrackerService);
   private sdhInterpreter = inject(SilentDiseaseHunterInterpretationService);
+  private sdhRouter = inject(Router);
 
   @ViewChild('sdhVideo') sdhVideoRef?: ElementRef<HTMLVideoElement>;
   @ViewChild('sdhCanvas') sdhCanvasRef?: ElementRef<HTMLCanvasElement>;
@@ -417,6 +495,15 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   sdhHandDetected = signal(false);
   sdhHandSkeletonQuality = signal(0);
   sdhAdvancedCompletedTests = signal<SdhAdvancedTestId[]>([]);
+  sdhTestCompletion = signal<SdhTestCompletionState>({ breathing: 'pending', facialMimic: 'pending', handMotor: 'pending', coughVoiceReading: 'pending', cardiac: 'pending' });
+  sdhAnalysisStarted = false;
+  sdhAnalysisLoading = signal(false);
+  sdhAnalysisLoadingStep = signal('');
+  sdhFinalAnalysisResult = signal<SdhFinalAnalysisSession | null>(null);
+  sdhFinalAnalysisNotice = signal('');
+  sdhPatientChoicePanel = signal(false);
+  sdhPendingAnalysisSource = signal<SdhFinalAnalysisSource>('manual');
+  sdhGuestSessionConfirmed = signal(false);
   sdhAdvancedAnalysis = signal<import('../../services/silent-disease-hunter-interpretation').SdhAdvancedGeminiAnalysis | null>(null);
   sdhAdvancedSignalQuality = signal({ camera: 58, microphone: 55, manual: 70, skeleton: 0 });
   sdhAdvancedScores = signal({
@@ -703,8 +790,10 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
 
   private sdhMarkCompleted(id: SdhAdvancedTestId) {
     this.sdhAdvancedCompletedTests.update((items) => items.includes(id) ? items : [...items, id]);
+    this.sdhUpdateTestCompletion(id, 'completed');
     this.sdhFeedbackTone.set('green');
     this.sdhFeedbackMessage.set('Mini-test yakunlandi. Keyingi testga o‘tish mumkin.');
+    void this.sdhAutoStartAnalysisIfReady();
   }
 
   sdhScoreRows() {
@@ -720,48 +809,267 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   }
 
   async sdhRunAdvancedAnalysis() {
-    if (this.sdhSelectedPatientId === 'umumiy') {
-      this.sdhAdvancedWarning.set('Natijani patient profiliga saqlash uchun avval bemor profilini tanlang. Eski Umumiy profil ma’lumotlari o‘zgartirilmaydi.');
+    await this.sdhRunFinalAnalysis({ source: 'manual', allowPartial: true, force: true });
+  }
+
+  sdhLoadingSteps(): string[] {
+    return [
+      'Test markerlari yig‘ilmoqda...',
+      'Signal sifati tekshirilmoqda...',
+      'Abdulloh AI klinik-multimodal tahlil qilmoqda...',
+      'Organlar bo‘yicha risk xaritasi tuzilmoqda...',
+      'Natijalar dashboardga saqlanmoqda...'
+    ];
+  }
+
+  sdhAreAllRequiredTestsCompleted(testState: SdhTestCompletionState): boolean {
+    const finished: SdhTestCompletionStatus[] = ['completed', 'completedWithWarning', 'skipped'];
+    return Boolean(
+      finished.includes(testState?.breathing) &&
+      finished.includes(testState?.facialMimic) &&
+      finished.includes(testState?.handMotor) &&
+      finished.includes(testState?.coughVoiceReading) &&
+      finished.includes(testState?.cardiac)
+    );
+  }
+
+  sdhIsProtocolFinished(): boolean {
+    return this.sdhAreAllRequiredTestsCompleted(this.sdhTestCompletion());
+  }
+
+  sdhUpdateTestCompletion(id: SdhAdvancedTestId, status: SdhTestCompletionStatus) {
+    const key = this.sdhCompletionKey(id);
+    this.sdhTestCompletion.update((state) => ({ ...state, [key]: status }));
+  }
+
+  async sdhAutoStartAnalysisIfReady() {
+    if (this.sdhAnalysisStarted || this.sdhAnalysisLoading()) return;
+    if (!this.sdhIsProtocolFinished()) return;
+    this.sdhAnalysisStarted = true;
+    await this.sdhRunFinalAnalysis({ source: 'auto', allowPartial: false });
+  }
+
+  async sdhRunFinalAnalysis(options: { source: SdhFinalAnalysisSource; allowPartial?: boolean; force?: boolean }) {
+    const state = this.sdhTestCompletion();
+    const hasPending = Object.values(state).includes('pending');
+    if (hasPending && !options.allowPartial) {
+      this.sdhAdvancedWarning.set('Ba’zi testlar hali pending. “Mavjud natijalar bilan tahlil qilish” rejimida Tahlilni boshlash tugmasini qayta bosing.');
       return;
     }
+    if (this.sdhAnalysisLoading()) return;
+    if (!options.force && this.sdhFinalAnalysisResult() && options.source === 'manual') {
+      this.sdhAdvancedWarning.set('Yakuniy natija allaqachon saqlandi. Qayta tahlil qilish uchun alohida tugmadan foydalaning.');
+      return;
+    }
+    if (this.sdhSelectedPatientId === 'umumiy' && this.sdhPatients().length && !this.sdhGuestSessionConfirmed() && options.source === 'manual') {
+      this.sdhPatientChoicePanel.set(true);
+      this.sdhPendingAnalysisSource.set(options.source);
+      return;
+    }
+
+    this.sdhPatientChoicePanel.set(this.sdhSelectedPatientId === 'umumiy' && this.sdhPatients().length > 0);
+    this.sdhAnalysisLoading.set(true);
+    this.sdhFinalAnalysisNotice.set('');
+    const loadingSteps = this.sdhLoadingSteps();
+    const createdAt = new Date().toISOString();
+
+    try {
+      for (const step of loadingSteps.slice(0, 2)) {
+        this.sdhAnalysisLoadingStep.set(step);
+        await this.sdhDelay(120);
+      }
+      const payload = this.sdhBuildFinalAnalysisPayload(options.source, createdAt);
+      this.sdhAnalysisLoadingStep.set(loadingSteps[2]);
+      const serviceResult = await this.sdhInterpreter.sdhInterpretFinal(payload);
+      this.sdhAnalysisLoadingStep.set(loadingSteps[3]);
+      const session = this.sdhBuildFinalAnalysisSession(payload, serviceResult.analysis, serviceResult.source, options.source, createdAt);
+      await this.sdhDelay(120);
+      this.sdhAnalysisLoadingStep.set(loadingSteps[4]);
+      this.sdhStorage.sdhSaveFinalAnalysis(session);
+      this.sdhFinalAnalysisResult.set(session);
+      this.sdhAdvancedAnalysis.set(this.sdhMapFinalToAdvancedSummary(serviceResult.analysis, serviceResult.source));
+      this.sdhFinalAnalysisNotice.set(serviceResult.source === 'local' ? 'Abdulloh AI lokal baholash rejimida natija chiqardi.' : 'Abdulloh AI yakuniy tahlili dashboardga saqlandi.');
+      this.sdhAdvancedWarning.set(this.sdhFinalAnalysisNotice());
+      setTimeout(() => document.getElementById('sdh-final-result-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    } finally {
+      this.sdhAnalysisLoading.set(false);
+      this.sdhAnalysisLoadingStep.set('');
+    }
+  }
+
+  async sdhConfirmPatientAndRunAnalysis() {
+    this.sdhGuestSessionConfirmed.set(this.sdhSelectedPatientId === 'umumiy');
+    this.sdhPatientChoicePanel.set(false);
+    await this.sdhRunFinalAnalysis({ source: this.sdhPendingAnalysisSource(), allowPartial: true, force: true });
+  }
+
+  async sdhContinueAsGuest() {
+    this.sdhSelectedPatientId = 'umumiy';
+    this.sdhGuestSessionConfirmed.set(true);
+    this.sdhPatientChoicePanel.set(false);
+    await this.sdhRunFinalAnalysis({ source: this.sdhPendingAnalysisSource(), allowPartial: true, force: true });
+  }
+
+  async sdhRetryFinalAnalysis() {
+    this.sdhAnalysisStarted = false;
+    await this.sdhRunFinalAnalysis({ source: 'manual', allowPartial: true, force: true });
+  }
+
+  sdhGoToDashboard() {
+    this.sdhRouter.navigate(['/dashboard']);
+  }
+
+  sdhFinalTestRows(session: SdhFinalAnalysisSession) {
+    const scores = session.finalAnalysis.testScores;
+    return [
+      { label: 'Nafas', value: scores.breathing },
+      { label: 'Mimika', value: scores.facialMimic },
+      { label: 'Qo‘l motorikasi', value: scores.handMotor },
+      { label: 'Yo‘tal/ovoz/o‘qish', value: scores.coughVoiceReading },
+      { label: 'Yurak', value: scores.cardiac }
+    ];
+  }
+
+  sdhFinalOrganRows(session: SdhFinalAnalysisSession) {
+    const risks = session.finalAnalysis.organRisks;
+    return [
+      { label: 'Yurak-qon tomir', value: risks.cardiovascular },
+      { label: 'Nafas tizimi', value: risks.respiratory },
+      { label: 'Asab/motorika', value: risks.neuromotor },
+      { label: 'Psixofiziologik stress', value: risks.psychophysiologicalStress },
+      { label: 'Metabolik', value: risks.metabolic },
+      { label: 'Cellular/yallig‘lanish', value: risks.cellularInflammatory }
+    ];
+  }
+
+  sdhTrendArrow(change: string): string {
+    if (change === 'increased') return '↑ yomonlashgan';
+    if (change === 'decreased') return '↓ yaxshilangan';
+    if (change === 'stable') return '→ stabil';
+    return 'oldingi natija yo‘q';
+  }
+
+  private sdhBuildFinalAnalysisPayload(source: SdhFinalAnalysisSource, createdAt: string): SdhFinalAnalysisPayload {
+    const metrics = this.sdhBuildAdvancedMetrics();
+    const signal = this.sdhBuildFinalSignalQuality();
+    const previous = this.sdhPreviousFinalAnalysis();
+    const guestSession = this.sdhSelectedPatientId === 'umumiy';
+    return {
+      meta: { platform: 'Abdulloh AI', module: 'Silent Disease Hunter', analysisType: 'multimodal_final_analysis', createdAt, patientId: guestSession ? null : this.sdhSelectedPatientId, guestSession, source, language: 'uz' },
+      completedTests: this.sdhTestCompletion(),
+      signalQuality: signal,
+      breathingResults: metrics.breathingResults,
+      facialMimicResults: metrics.facialMimicResults,
+      handMotorResults: metrics.handMotorResults,
+      coughVoiceReadingResults: metrics.coughVoiceReadingResults,
+      cardiacResults: metrics.cardiacResults,
+      manualInputs: metrics.manualInputs,
+      labInputs: metrics.labInputs,
+      wearableInputs: metrics.wearableInputs,
+      previousResultForTrend: previous
+    };
+  }
+
+  private sdhBuildFinalAnalysisSession(payload: SdhFinalAnalysisPayload, analysis: SdhFinalAnalysisResponse, source: 'gemini' | 'local', runSource: SdhFinalAnalysisSource, createdAt: string): SdhFinalAnalysisSession {
+    const metrics = this.sdhBuildAdvancedMetrics();
+    const radar = this.sdhFinalTestRows({ finalAnalysis: analysis } as SdhFinalAnalysisSession);
+    const organRisk = this.sdhFinalOrganRows({ finalAnalysis: analysis } as SdhFinalAnalysisSession);
+    return {
+      id: `sdh-analysis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      patientId: payload.meta.patientId,
+      guestSession: payload.meta.guestSession,
+      createdAt,
+      module: 'Silent Disease Hunter',
+      analysisVersion: 'advanced-final-v1',
+      source: runSource,
+      completedTests: payload.completedTests,
+      skippedTests: Object.entries(payload.completedTests).filter(([, value]) => value === 'skipped').map(([key]) => key),
+      signalQuality: payload.signalQuality,
+      rawTestMetrics: { breathingResults: metrics.breathingResults, facialMimicResults: metrics.facialMimicResults, handMotorResults: metrics.handMotorResults, coughVoiceReadingResults: metrics.coughVoiceReadingResults, cardiacResults: metrics.cardiacResults },
+      manualInputs: metrics.manualInputs,
+      labInputs: metrics.labInputs,
+      wearableInputs: metrics.wearableInputs,
+      geminiAnalysis: source === 'gemini' ? analysis : null,
+      fallbackAnalysis: source === 'local' ? analysis : null,
+      finalAnalysis: analysis,
+      riskScores: { overallRisk: analysis.overallRiskPercent, physiologicalStability: analysis.overallStabilityPercent, confidence: analysis.confidencePercent },
+      organRisks: analysis.organRisks,
+      trendComparison: analysis.trendComparison,
+      patientSummary: analysis.patientSummary,
+      doctorSummary: analysis.doctorSummary,
+      recommendations: analysis.recommendations,
+      emergencyWarning: analysis.emergencyWarning,
+      chartData: { radar, bar: radar, timeline: [...this.sdhTimeline, analysis.overallRiskPercent], organRisk }
+    };
+  }
+
+  private sdhBuildAdvancedMetrics() {
     const scores = this.sdhAdvancedScores();
     const q = this.sdhAdvancedSignalQuality();
-    const riskScores = {
-      breathingRisk: 100 - scores.breathing, facialRisk: 100 - scores.facial, handRisk: 100 - scores.hand, voiceRisk: 100 - scores.voice, cardiacRisk: 100 - scores.cardiac, overallRisk: 100 - scores.stability, physiologicalStability: scores.stability
-    };
     const features = this.sdhExtractFeatures(this.sdhBuildSnapshot());
-    const organRisks = this.sdhFuseOrganRisks(features).map((organ) => {
-      if (organ.key === 'lungs') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.breathingRisk) / 2, 1, 99) };
-      if (organ.key === 'brain') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.handRisk + riskScores.facialRisk) / 3, 1, 99) };
-      if (organ.key === 'heart') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.cardiacRisk) / 2, 1, 99) };
-      if (organ.key === 'stress') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.voiceRisk) / 2, 1, 99) };
-      return organ;
-    });
-    const emergencyFlags = this.sdhAdvancedEmergencyFlags(riskScores, organRisks);
-    const analysis = await this.sdhInterpreter.sdhInterpretAdvanced({
-      patientId: this.sdhSelectedPatientId,
-      signalQuality: scores.signal,
-      completedTests: this.sdhAdvancedCompletedTests(),
-      testStats: riskScores,
-      organRisks: organRisks.map((x) => ({ nameUz: x.nameUz, percent: x.percent, levelUz: this.sdhRiskLevel(x.percent) })),
-      emergencyFlags,
-      previousTrend: this.sdhStorage.sdhListAdvanced(this.sdhSelectedPatientId).slice(0, 8).map((x) => x.riskScores?.['overallRisk'] ?? 0)
-    });
-    this.sdhAdvancedAnalysis.set(analysis);
-    const result: SdhAdvancedTestResult = {
-      patientId: this.sdhSelectedPatientId, sessionId: `silentDiseaseHunter-${Date.now()}`, createdAt: new Date().toISOString(), testMode: this.sdhAdvancedTestMode, completedTests: this.sdhAdvancedCompletedTests(), signalQuality: q,
-      breathingResults: { sdhRespiratoryRhythmScore: scores.breathing, sdhBreathStabilityScore: scores.breathing, sdhChestMotionScore: q.camera, sdhDyspneaSignalScore: riskScores.breathingRisk, sdhBreathRecoveryScore: scores.stability, sdhSignalQualityBreathing: q.camera },
-      facialMimicResults: { sdhFacialSymmetryScore: scores.facial, sdhSmileSymmetryScore: scores.facial, sdhEyeClosureScore: scores.facial, sdhBrowMovementScore: scores.facial, sdhLipControlScore: scores.facial, sdhFacialFatigueScore: 100 - scores.facial, sdhMicroExpressionVariability: features.microExpressionVariability, sdhFacialSignalQuality: q.camera },
-      handMotorResults: { sdhHandDetected: this.sdhHandDetected(), sdhHandSkeletonQuality: q.skeleton, sdhGestureAccuracyScore: scores.hand, sdhFingerTappingScore: scores.hand, sdhFineMotorScore: scores.hand, sdhTremorSignalScore: 100 - scores.hand, sdhMovementSpeedScore: scores.hand, sdhMotorSymmetryScore: scores.hand, sdhReactionTimeScore: scores.hand, sdhNeuromotorRiskSignal: riskScores.handRisk },
-      coughVoiceReadingResults: { sdhCoughPatternScore: scores.voice, sdhVoiceStabilityScore: scores.voice, sdhVoiceTremorScore: 100 - scores.voice, sdhSpeechSpeedScore: scores.voice, sdhPauseFrequencyScore: riskScores.voiceRisk, sdhBreathDuringSpeechScore: scores.breathing, sdhVocalStressIndex: riskScores.voiceRisk, sdhRespiratoryVoiceSignal: scores.voice },
-      cardiacResults: { sdhHeartRateSignal: this.sdhInput.heartRate ?? 'manual kiritilmagan', sdhHRVSignal: this.sdhInput.hrv ?? 'manual kiritilmagan', sdhPulseStabilityScore: scores.cardiac, sdhCardiacMotionScore: q.camera, sdhArrhythmiaRiskSignal: riskScores.cardiacRisk, sdhCardiacSymptomScore: this.sdhInput.chestDiscomfort ? 78 : 24, sdhCardiorespiratoryRiskScore: this.sdhClamp((riskScores.cardiacRisk + riskScores.breathingRisk) / 2, 1, 99), sdhEmergencyCardiacFlag: emergencyFlags.length > 0 },
-      manualInputs: { dyspnea: this.sdhInput.dyspnea, fatigue: this.sdhInput.fatigue, stress: this.sdhInput.stress, chestDiscomfort: this.sdhInput.chestDiscomfort, neurologicalAsymmetry: this.sdhInput.neurologicalAsymmetry },
-      wearableInputs: { heartRate: this.sdhInput.heartRate, hrv: this.sdhInput.hrv, spo2: this.sdhInput.spo2, sleepHours: this.sdhInput.sleepHours },
+    const breathingRisk = 100 - scores.breathing;
+    const voiceRisk = 100 - scores.voice;
+    const cardiacRisk = 100 - scores.cardiac;
+    return {
+      breathingResults: { respiratoryRhythmScore: scores.breathing, breathStabilityScore: scores.breathing, chestMotionScore: q.camera, dyspneaSignalScore: breathingRisk, breathRecoveryScore: scores.stability, notes: 'Nafas markerlari kamera/mikrofon/manual signallar asosida hisoblandi.' },
+      facialMimicResults: { facialSymmetryScore: scores.facial, smileSymmetryScore: scores.facial, eyeClosureScore: scores.facial, browMovementScore: scores.facial, lipControlScore: scores.facial, cheekPuffScore: scores.facial, mouthOpeningScore: scores.facial, facialFatigueScore: 100 - scores.facial, notes: 'Mimika signallari tashxis emas, nevrologik kuzatuv signali.' },
+      handMotorResults: { handDetected: this.sdhHandDetected(), handSkeletonQuality: q.skeleton, gestureAccuracyScore: scores.hand, fingerTappingScore: scores.hand, fineMotorScore: scores.hand, tremorSignalScore: 100 - scores.hand, movementSpeedScore: scores.hand, motorSymmetryScore: scores.hand, reactionTimeScore: scores.hand, neuromotorRiskSignal: 100 - scores.hand, notes: 'Qo‘l skeletoni va gesture signallari mavjud holatda baholandi.' },
+      coughVoiceReadingResults: { coughPatternScore: scores.voice, voiceStabilityScore: scores.voice, voiceTremorScore: voiceRisk, speechSpeedScore: scores.voice, pauseFrequencyScore: voiceRisk, breathDuringSpeechScore: scores.breathing, vocalStressIndex: voiceRisk, respiratoryVoiceSignal: scores.voice, notes: 'Yo‘tal/ovoz/o‘qish markerlari mikrofon yoki fallback orqali baholandi.' },
+      cardiacResults: { heartRateSignal: this.sdhInput.heartRate ?? 'manual kiritilmagan', hrvSignal: this.sdhInput.hrv ?? 'manual kiritilmagan', pulseStabilityScore: scores.cardiac, cardiacMotionScore: q.camera, arrhythmiaRiskSignal: cardiacRisk, cardiacSymptomScore: this.sdhInput.chestDiscomfort ? 78 : 24, cardiorespiratoryRiskScore: this.sdhClamp((cardiacRisk + breathingRisk) / 2, 1, 99), emergencyCardiacFlag: this.sdhAdvancedEmergencyFlags({ breathingRisk, facialRisk: 100 - scores.facial, handRisk: 100 - scores.hand, voiceRisk, cardiacRisk }, this.sdhFuseOrganRisks(features)).length > 0, notes: 'Yurak signali monitoring/risk signali bo‘lib, yakuniy tashxis emas.' },
+      manualInputs: { symptoms: '', complaints: '', medicalHistory: '', medications: '', lifestyle: '', sleep: this.sdhInput.sleepHours, stress: this.sdhInput.stress, pain: this.sdhInput.chestDiscomfort, dyspnea: this.sdhInput.dyspnea, chestPain: this.sdhInput.chestDiscomfort, dizziness: false, fainting: false, fatigue: this.sdhInput.fatigue, neurologicalAsymmetry: this.sdhInput.neurologicalAsymmetry },
       labInputs: { glucose: this.sdhInput.glucose, hbA1c: this.sdhInput.hbA1c, hemoglobin: this.sdhInput.hemoglobin, crp: this.sdhInput.crp, creatinine: this.sdhInput.creatinine, alt: this.sdhInput.alt },
-      riskScores, organRisks, geminiAnalysis: analysis.source === 'gemini' ? analysis : null, fallbackAnalysis: analysis.source === 'local' ? analysis : null, emergencyFlags, recommendations: analysis.keyingiTavsiyalar, doctorSummary: analysis.shifokorUchunXulosa, patientSummary: analysis.bemorUchunXulosa, rawMetrics: { features, q, scores }, chartData: { radar: this.sdhScoreRows(), bars: this.sdhScoreRows(), timeline: [...this.sdhTimeline, riskScores.overallRisk] }
+      wearableInputs: { heartRate: this.sdhInput.heartRate, hrv: this.sdhInput.hrv, spo2: this.sdhInput.spo2, sleepHours: this.sdhInput.sleepHours }
     };
-    this.sdhStorage.sdhSaveAdvanced(result);
-    this.sdhAdvancedWarning.set(analysis.source === 'local' ? 'AI chuqur tahlili vaqtincha ishlamadi, lokal baholash ko‘rsatildi.' : 'Gemini chuqur tahlili va kengaytirilgan natija patient profiliga saqlandi.');
+  }
+
+  private sdhBuildFinalSignalQuality(): Record<string, number> {
+    const q = this.sdhAdvancedSignalQuality();
+    const overall = this.sdhClamp((q.camera + q.microphone + q.manual + Math.max(0, q.skeleton)) / 4, 1, 99);
+    return { camera: q.camera, microphone: q.microphone, handSkeleton: q.skeleton, faceTracking: q.camera, breathingTracking: q.camera, cardiacSignal: q.camera, overall };
+  }
+
+  private sdhPreviousFinalAnalysis() {
+    const patientId = this.sdhSelectedPatientId === 'umumiy' ? undefined : this.sdhSelectedPatientId;
+    const previous = this.sdhStorage.sdhListFinalAnalyses(patientId).find((item) => patientId ? item.patientId === patientId : item.guestSession);
+    return {
+      exists: !!previous,
+      previousCreatedAt: previous?.createdAt ?? null,
+      previousOverallRisk: previous?.finalAnalysis?.overallRiskPercent ?? null,
+      previousOrganRisks: previous?.finalAnalysis?.organRisks ?? null,
+      previousMainFindings: previous?.finalAnalysis?.mainFindings ?? []
+    };
+  }
+
+  private sdhMapFinalToAdvancedSummary(analysis: SdhFinalAnalysisResponse, source: 'gemini' | 'local') {
+    return {
+      source,
+      umumiyFiziologikHolat: analysis.riskExplanation,
+      testlarBoyichaNatija: Object.entries(analysis.testScores).map(([key, value]) => `${key}: ${value}%`),
+      nafasTizimiTahlili: analysis.breathingAnalysis,
+      yuzMimikaNevrologikSignalTahlili: analysis.facialMimicAnalysis,
+      qolMotorikasiTremorTahlili: analysis.handMotorAnalysis,
+      yotalOvozNutqTahlili: analysis.voiceCoughReadingAnalysis,
+      yurakRiskSignallari: analysis.cardiacAnalysis,
+      organlarBoyichaRiskFoizlari: this.sdhFinalOrganRows({ finalAnalysis: analysis } as SdhFinalAnalysisSession).map((row) => ({ nameUz: row.label, percent: row.value, levelUz: this.sdhRiskLevel(row.value) })),
+      signalSifatiTasiri: analysis.limitations.join(' '),
+      engMuhimTopilmalar: analysis.mainFindings,
+      bemorUchunXulosa: analysis.patientSummary,
+      shifokorUchunXulosa: analysis.doctorSummary,
+      keyingiTavsiyalar: analysis.recommendations,
+      emergencyWarningBor: analysis.emergencyWarning.active,
+      disclaimer: analysis.disclaimer
+    };
+  }
+
+  private sdhCompletionKey(id: SdhAdvancedTestId): keyof SdhTestCompletionState {
+    if (id === 'facial') return 'facialMimic';
+    if (id === 'hand') return 'handMotor';
+    if (id === 'voice') return 'coughVoiceReading';
+    return id;
+  }
+
+  private sdhDelay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private sdhAdvancedEmergencyFlags(riskScores: Record<string, number>, organRisks: SdhOrganRisk[]): string[] {

@@ -109,10 +109,77 @@ export interface SdhAdvancedTestResult {
   chartData: { radar: { label: string; value: number }[]; bars: { label: string; value: number }[]; timeline: number[] };
 }
 
+export type SdhTestCompletionStatus = 'completed' | 'completedWithWarning' | 'skipped' | 'failed' | 'pending';
+
+export interface SdhTestCompletionState {
+  breathing: SdhTestCompletionStatus;
+  facialMimic: SdhTestCompletionStatus;
+  handMotor: SdhTestCompletionStatus;
+  coughVoiceReading: SdhTestCompletionStatus;
+  cardiac: SdhTestCompletionStatus;
+}
+
+export interface SdhFinalAnalysisResponse {
+  overallRiskPercent: number;
+  overallStabilityPercent: number;
+  confidencePercent: number;
+  testScores: { breathing: number; facialMimic: number; handMotor: number; coughVoiceReading: number; cardiac: number };
+  organRisks: { cardiovascular: number; respiratory: number; neuromotor: number; psychophysiologicalStress: number; metabolic: number; cellularInflammatory: number };
+  mainFindings: string[];
+  riskExplanation: string;
+  breathingAnalysis: string;
+  facialMimicAnalysis: string;
+  handMotorAnalysis: string;
+  voiceCoughReadingAnalysis: string;
+  cardiacAnalysis: string;
+  trendComparison: { hasPrevious: boolean; riskChange: 'increased' | 'decreased' | 'stable' | 'unknown'; summary: string };
+  patientSummary: string;
+  doctorSummary: string;
+  recommendations: string[];
+  emergencyWarning: { active: boolean; message: string };
+  limitations: string[];
+  disclaimer: string;
+}
+
+export interface SdhFinalAnalysisSession {
+  id: string;
+  patientId: string | null;
+  guestSession: boolean;
+  createdAt: string;
+  module: 'Silent Disease Hunter';
+  analysisVersion: 'advanced-final-v1';
+  source: 'auto' | 'manual';
+  completedTests: SdhTestCompletionState;
+  skippedTests: string[];
+  signalQuality: Record<string, number>;
+  rawTestMetrics: {
+    breathingResults: Record<string, number | string | boolean>;
+    facialMimicResults: Record<string, number | string | boolean>;
+    handMotorResults: Record<string, number | string | boolean>;
+    coughVoiceReadingResults: Record<string, number | string | boolean>;
+    cardiacResults: Record<string, number | string | boolean>;
+  };
+  manualInputs: Record<string, number | string | boolean | null>;
+  labInputs: Record<string, number | string | boolean | null>;
+  wearableInputs: Record<string, number | string | boolean | null>;
+  geminiAnalysis: unknown;
+  fallbackAnalysis: unknown;
+  finalAnalysis: SdhFinalAnalysisResponse;
+  riskScores: Record<string, number>;
+  organRisks: Record<string, number>;
+  trendComparison: SdhFinalAnalysisResponse['trendComparison'];
+  patientSummary: string;
+  doctorSummary: string;
+  recommendations: string[];
+  emergencyWarning: SdhFinalAnalysisResponse['emergencyWarning'];
+  chartData: { radar: { label: string; value: number }[]; bar: { label: string; value: number }[]; timeline: number[]; organRisk: { label: string; value: number }[] };
+}
+
 @Injectable({ providedIn: 'root' })
 export class SilentDiseaseHunterStorageService {
   private readonly sdhLocalKey = 'abdullohAI_silentDiseaseHunterResults';
   private readonly sdhAdvancedLocalKey = 'abdullohAI_sdhAdvancedTestResults';
+  private readonly sdhFinalAnalysisLocalKey = 'abdullohAI_sdhAdvancedFinalAnalyses';
   private supabase = inject(SupabaseService);
 
   sdhListLocal(): SdhResult[] {
@@ -176,6 +243,35 @@ export class SilentDiseaseHunterStorageService {
     const list = this.sdhListAdvanced().filter((x) => x.sessionId !== normalized.sessionId);
     list.unshift(normalized);
     localStorage.setItem(this.sdhAdvancedLocalKey, JSON.stringify(list.slice(0, 160)));
+  }
+
+
+  sdhListFinalAnalyses(patientId?: string): SdhFinalAnalysisSession[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.sdhFinalAnalysisLocalKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed as SdhFinalAnalysisSession[] : [];
+      return patientId ? list.filter((x) => x.patientId === patientId) : list;
+    } catch (error) {
+      console.error('Silent Disease Hunter final analysis localStorage parse error:', error);
+      return [];
+    }
+  }
+
+  sdhSaveFinalAnalysis(session: SdhFinalAnalysisSession): void {
+    if (typeof window === 'undefined') return;
+    const normalized: SdhFinalAnalysisSession = {
+      ...session,
+      id: session.id || `sdh-analysis-${Date.now()}`,
+      createdAt: session.createdAt || new Date().toISOString(),
+      module: 'Silent Disease Hunter',
+      analysisVersion: 'advanced-final-v1',
+      recommendations: Array.isArray(session.recommendations) ? session.recommendations : []
+    };
+    const list = this.sdhListFinalAnalyses().filter((x) => x.id !== normalized.id);
+    list.unshift(normalized);
+    localStorage.setItem(this.sdhFinalAnalysisLocalKey, JSON.stringify(list.slice(0, 200)));
   }
 
   async sdhSave(result: SdhResult): Promise<{ error: { message: string } | null }> {

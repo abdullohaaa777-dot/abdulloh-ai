@@ -4,6 +4,19 @@ import { SupabaseService } from '../../services/supabase';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterModule } from '@angular/router';
 
+interface SdhDashboardFinalAnalysis {
+  id: string;
+  patientId: string | null;
+  guestSession: boolean;
+  createdAt: string;
+  finalAnalysis: {
+    overallRiskPercent: number;
+    testScores: Record<string, number>;
+    trendComparison: { riskChange: string; summary: string };
+    emergencyWarning: { active: boolean; message: string };
+  };
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -63,6 +76,27 @@ import { Router, RouterModule } from '@angular/router';
             <p class="font-bold">Silent Disease Hunter — kengaytirilgan test natijalari</p>
             <p>{{ sdhAdvancedResultCount() }} ta lokal patient natijasi saqlangan</p>
           </div>
+          <section class="ml-2 mr-1 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-3 text-xs text-emerald-900 space-y-2">
+            <p class="font-black uppercase tracking-wide">SILENT DISEASE HUNTER — YAKUNIY TAHLILLAR</p>
+            @if (sdhLatestFinalAnalysis(); as final) {
+              @if (final.finalAnalysis.emergencyWarning.active) {
+                <div class="rounded-xl bg-red-50 border border-red-100 p-2 text-red-700">Shoshilinch ogohlantirish mavjud</div>
+              }
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-white/80 p-2"><span class="block text-emerald-700">Umumiy risk</span><strong>{{ final.finalAnalysis.overallRiskPercent }}%</strong></div>
+                <div class="rounded-xl bg-white/80 p-2"><span class="block text-emerald-700">Trend</span><strong>{{ sdhTrendArrow(final.finalAnalysis.trendComparison.riskChange) }}</strong></div>
+              </div>
+              <p>{{ final.guestSession ? 'Mehmon sessiyasi' : 'Patient profiliga bog‘langan' }}</p>
+              <p class="line-clamp-2">{{ final.finalAnalysis.trendComparison.summary }}</p>
+              <div class="flex gap-2">
+                <a routerLink="/silent-disease-hunter" class="underline font-bold">Resultni ochish</a>
+                @if (final.guestSession) { <a routerLink="/silent-disease-hunter" class="underline font-bold">Bemor profiliga bog‘lash</a> }
+              </div>
+              <p>{{ sdhFinalAnalysisCount() }} ta yakuniy tahlil tarixi</p>
+            } @else {
+              <p>Oldingi natija yo‘q. Test yakunlangach trend shu yerda chiqadi.</p>
+            }
+          </section>
           <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
@@ -132,6 +166,8 @@ export class DashboardComponent implements OnInit {
 
   userEmail = signal<string | undefined>(undefined);
   sdhAdvancedResultCount = signal(0);
+  sdhFinalAnalysisCount = signal(0);
+  sdhLatestFinalAnalysis = signal<SdhDashboardFinalAnalysis | null>(null);
 
   ngOnInit() {
     this.userEmail.set(this.supabase.user()?.email);
@@ -144,9 +180,23 @@ export class DashboardComponent implements OnInit {
       const raw = localStorage.getItem('abdullohAI_sdhAdvancedTestResults');
       const parsed = raw ? JSON.parse(raw) : [];
       this.sdhAdvancedResultCount.set(Array.isArray(parsed) ? parsed.length : 0);
+      const finalRaw = localStorage.getItem('abdullohAI_sdhAdvancedFinalAnalyses');
+      const finalParsed = finalRaw ? JSON.parse(finalRaw) : [];
+      const finalList = Array.isArray(finalParsed) ? finalParsed as SdhDashboardFinalAnalysis[] : [];
+      this.sdhFinalAnalysisCount.set(finalList.length);
+      this.sdhLatestFinalAnalysis.set(finalList[0] ?? null);
     } catch {
       this.sdhAdvancedResultCount.set(0);
+      this.sdhFinalAnalysisCount.set(0);
+      this.sdhLatestFinalAnalysis.set(null);
     }
+  }
+
+  sdhTrendArrow(change: string): string {
+    if (change === 'increased') return '↑ yomonlashgan';
+    if (change === 'decreased') return '↓ yaxshilangan';
+    if (change === 'stable') return '→ stabil';
+    return 'oldingi natija yo‘q';
   }
 
   async logout() {
