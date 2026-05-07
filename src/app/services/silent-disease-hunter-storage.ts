@@ -82,9 +82,37 @@ export interface SdhResult {
   recommendations: string[];
 }
 
+export interface SdhAdvancedTestResult {
+  patientId: string;
+  sessionId: string;
+  createdAt: string;
+  testMode: 'automatic' | 'manual';
+  completedTests: string[];
+  signalQuality: Record<string, number>;
+  breathingResults: Record<string, number | string | boolean>;
+  facialMimicResults: Record<string, number | string | boolean>;
+  handMotorResults: Record<string, number | string | boolean>;
+  coughVoiceReadingResults: Record<string, number | string | boolean>;
+  cardiacResults: Record<string, number | string | boolean>;
+  manualInputs: Record<string, number | string | boolean | null>;
+  wearableInputs: Record<string, number | string | boolean | null>;
+  labInputs: Record<string, number | string | boolean | null>;
+  riskScores: Record<string, number>;
+  organRisks: SdhOrganRisk[];
+  geminiAnalysis: unknown;
+  fallbackAnalysis: unknown;
+  emergencyFlags: string[];
+  recommendations: string[];
+  doctorSummary: string;
+  patientSummary: string;
+  rawMetrics: Record<string, unknown>;
+  chartData: { radar: { label: string; value: number }[]; bars: { label: string; value: number }[]; timeline: number[] };
+}
+
 @Injectable({ providedIn: 'root' })
 export class SilentDiseaseHunterStorageService {
   private readonly sdhLocalKey = 'abdullohAI_silentDiseaseHunterResults';
+  private readonly sdhAdvancedLocalKey = 'abdullohAI_sdhAdvancedTestResults';
   private supabase = inject(SupabaseService);
 
   sdhListLocal(): SdhResult[] {
@@ -119,6 +147,35 @@ export class SilentDiseaseHunterStorageService {
 
     const local = this.sdhListLocal();
     return patientId ? local.filter((x) => x.patientId === patientId) : local;
+  }
+
+
+  sdhListAdvanced(patientId?: string): SdhAdvancedTestResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.sdhAdvancedLocalKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed as SdhAdvancedTestResult[] : [];
+      return patientId ? list.filter((x) => x.patientId === patientId) : list;
+    } catch (error) {
+      console.error('Silent Disease Hunter advanced localStorage parse error:', error);
+      return [];
+    }
+  }
+
+  sdhSaveAdvanced(result: SdhAdvancedTestResult): void {
+    if (typeof window === 'undefined') return;
+    const normalized: SdhAdvancedTestResult = {
+      ...result,
+      sessionId: result.sessionId || `silentDiseaseHunter-${Date.now()}`,
+      createdAt: result.createdAt || new Date().toISOString(),
+      completedTests: Array.isArray(result.completedTests) ? result.completedTests : [],
+      emergencyFlags: Array.isArray(result.emergencyFlags) ? result.emergencyFlags : [],
+      recommendations: Array.isArray(result.recommendations) ? result.recommendations : []
+    };
+    const list = this.sdhListAdvanced().filter((x) => x.sessionId !== normalized.sessionId);
+    list.unshift(normalized);
+    localStorage.setItem(this.sdhAdvancedLocalKey, JSON.stringify(list.slice(0, 160)));
   }
 
   async sdhSave(result: SdhResult): Promise<{ error: { message: string } | null }> {

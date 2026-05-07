@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { SupabaseService } from '../../services/supabase';
@@ -7,13 +7,27 @@ import {
   SdhFeatureSet,
   SdhInputSnapshot,
   SdhOrganRisk,
+  SdhAdvancedTestResult,
   SdhResult,
   SilentDiseaseHunterStorageService
 } from '../../services/silent-disease-hunter-storage';
+import { HandTrackerService, NormalizedHandLandmarkerResult } from '../../services/hand-tracker';
+import { SilentDiseaseHunterInterpretationService } from '../../services/silent-disease-hunter-interpretation';
 
 interface SdhPatientOption {
   id: string;
   name: string;
+}
+
+type SdhAdvancedTestId = 'breathing' | 'facial' | 'hand' | 'voice' | 'cardiac';
+type SdhFeedbackTone = 'blue' | 'green' | 'yellow' | 'red';
+
+interface SdhProtocolStep {
+  id: SdhAdvancedTestId;
+  titleUz: string;
+  durationSec: number;
+  instructionUz: string;
+  tasksUz: string[];
 }
 
 @Component({
@@ -59,6 +73,105 @@ interface SdhPatientOption {
       </section>
 
       <section class="sdh-content p-5 md:p-7 space-y-6 bg-slate-950">
+
+        <section class="sdh-advanced-grid rounded-3xl border border-cyan-400/20 bg-slate-900/80 p-5 md:p-6 shadow-2xl">
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+            <div>
+              <p class="text-xs uppercase tracking-[.22em] text-cyan-200">Silent Disease Hunter — kengaytirilgan protokol</p>
+              <h2 class="text-2xl font-black mt-1">Real-time multimodal fiziologik monitoring</h2>
+              <p class="text-sm text-slate-400 mt-1">Nafas, mimika, qo‘l motorikasi, yo‘tal/ovoz/o‘qish va yurak holati testlari mavjud modul ichida xavfsiz kengaytirildi.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button class="sdh-button-primary" (click)="sdhStartAutomaticProtocol()" [disabled]="sdhAdvancedRunning()">Avtomatik protokol</button>
+              <button class="sdh-button-secondary" (click)="sdhStopAdvancedProtocol()" [disabled]="!sdhAdvancedRunning()">To‘xtatish</button>
+              <button class="sdh-button-secondary" (click)="sdhRunAdvancedAnalysis()">Yakuniy chuqur tahlil</button>
+            </div>
+          </div>
+
+          <div class="grid xl:grid-cols-[1.05fr_.95fr] gap-5">
+            <div class="sdh-camera-card rounded-3xl border border-slate-700 bg-slate-950/80 overflow-hidden">
+              <div class="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                  <span class="sdh-status-dot" [class.sdh-status-dot-active]="sdhCameraReady()"></span>
+                  <span class="font-bold">Live kamera oynasi</span>
+                  <span class="text-xs text-slate-400">AI hisoblash anatomik real chap-o‘ngda qoladi</span>
+                </div>
+                <label class="sdh-toggle !py-2 !px-3">
+                  <input type="checkbox" [(ngModel)]="sdhMirrorPreview">
+                  <span>{{ sdhMirrorPreview ? 'Ko‘zgudek ko‘rsatish' : 'Real chap-o‘ng' }}</span>
+                </label>
+              </div>
+              <div class="sdh-video-wrap">
+                <video #sdhVideo autoplay muted playsinline class="sdh-video" [class.sdh-video-mirror]="sdhMirrorPreview"></video>
+                <canvas #sdhCanvas class="sdh-overlay" [class.sdh-video-mirror]="sdhMirrorPreview"></canvas>
+                <div class="sdh-camera-badges">
+                  <span [class]="sdhFeedbackClass()">{{ sdhFeedbackMessage() }}</span>
+                  <span class="sdh-badge-blue">Signal: {{ sdhAdvancedSignalQuality().camera }}%</span>
+                  <span class="sdh-badge-green">Qo‘l: {{ sdhHandDetected() ? 'topildi' : 'topilmadi' }}</span>
+                </div>
+              </div>
+              <div class="grid sm:grid-cols-4 gap-2 p-4 text-sm">
+                <div class="sdh-mini-stat"><span>Kamera</span><strong>{{ sdhCameraReady() ? 'faol' : 'fallback' }}</strong></div>
+                <div class="sdh-mini-stat"><span>Mikrofon</span><strong>{{ sdhMicReady() ? 'faol' : 'manual' }}</strong></div>
+                <div class="sdh-mini-stat"><span>Skeleton</span><strong>{{ sdhHandSkeletonQuality() }}%</strong></div>
+                <div class="sdh-mini-stat"><span>Progress</span><strong>{{ sdhAdvancedProgress() }}%</strong></div>
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-xl font-black">Test instruktsiyasi</h3>
+                    <p class="text-sm text-slate-400">{{ sdhActiveStep()?.titleUz || 'Manual yoki avtomatik testni tanlang' }}</p>
+                  </div>
+                  <div class="text-right"><p class="text-4xl font-black text-cyan-200">{{ sdhCountdown() }}s</p><p class="text-xs text-slate-400">qolgan vaqt</p></div>
+                </div>
+                <p class="mt-4 text-slate-100">{{ sdhActiveStep()?.instructionUz || 'Kamera va mikrofon ruxsatlari bo‘lmasa ham testlar manual/fallback rejimida davom etadi.' }}</p>
+                <div class="mt-4 h-3 rounded-full bg-slate-800 overflow-hidden"><div class="h-full bg-gradient-to-r from-cyan-400 to-emerald-400" [style.width.%]="sdhAdvancedProgress()"></div></div>
+                <ul class="mt-4 grid sm:grid-cols-2 gap-2 text-sm text-slate-300">
+                  @for (task of (sdhActiveStep()?.tasksUz || sdhProtocolOverview()); track task) { <li class="rounded-xl border border-slate-800 bg-slate-900/70 p-3">{{ task }}</li> }
+                </ul>
+              </div>
+
+              <div class="grid sm:grid-cols-2 gap-3">
+                @for (step of sdhAdvancedProtocol; track step.id) {
+                  <button class="sdh-test-card text-left" (click)="sdhStartManualTest(step.id)" [class.sdh-test-card-active]="sdhActiveTestId() === step.id">
+                    <span class="text-xs text-cyan-200">{{ step.durationSec }} soniya</span>
+                    <strong>{{ step.titleUz }}</strong>
+                    <small>{{ sdhAdvancedCompletedTests().includes(step.id) ? 'Bajarildi' : 'Manual ishga tushirish' }}</small>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          @if (sdhAdvancedWarning()) {
+            <div class="mt-5 rounded-2xl border border-amber-300/25 bg-amber-400/10 p-4 text-sm text-amber-100">{{ sdhAdvancedWarning() }}</div>
+          }
+
+          <div class="grid lg:grid-cols-3 gap-4 mt-5">
+            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <h3 class="font-black">Test scorelari</h3>
+              @for (row of sdhScoreRows(); track row.label) {
+                <div class="mt-3"><div class="flex justify-between text-sm"><span>{{ row.label }}</span><span>{{ row.value }}%</span></div><div class="h-2 bg-slate-800 rounded-full"><div class="h-full rounded-full bg-cyan-400" [style.width.%]="row.value"></div></div></div>
+              }
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <h3 class="font-black">Radar chart</h3>
+              <div class="grid grid-cols-6 gap-2 mt-4">
+                @for (row of sdhScoreRows(); track row.label) { <div class="rounded-xl border border-slate-700 bg-cyan-400/10 flex items-end h-32"><div class="w-full rounded-b-xl bg-gradient-to-t from-cyan-400 to-emerald-300" [style.height.%]="row.value"></div></div> }
+              </div>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <h3 class="font-black">Gemini chuqur tahlil paneli</h3>
+              <p class="text-sm text-slate-300 mt-2">{{ sdhAdvancedAnalysis()?.umumiyFiziologikHolat || 'Yakuniy tahlil bosilganda markerlar Gemini servicega yuboriladi. Xom video/audio yuborilmaydi.' }}</p>
+              <ul class="list-disc pl-5 text-sm text-slate-300 mt-3 space-y-1">
+                @for (finding of (sdhAdvancedAnalysis()?.engMuhimTopilmalar || []); track finding) { <li>{{ finding }}</li> }
+              </ul>
+            </div>
+          </div>
+        </section>
         <div class="grid xl:grid-cols-[.95fr_1.05fr] gap-5">
           <div class="sdh-panel rounded-3xl border border-slate-800 bg-slate-900/80 p-5 space-y-4">
             <div class="flex items-center justify-between gap-3">
@@ -236,6 +349,27 @@ interface SdhPatientOption {
     </div>
   `,
   styles: [`
+
+    .sdh-advanced-grid { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 24px 70px rgba(8,47,73,.22); }
+    .sdh-video-wrap { position: relative; min-height: 280px; aspect-ratio: 16/10; background: radial-gradient(circle at 50% 35%, rgba(8,145,178,.18), #020617 62%); }
+    .sdh-video, .sdh-overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .sdh-overlay { pointer-events: none; }
+    .sdh-video-mirror { transform: scaleX(-1); }
+    .sdh-camera-badges { position: absolute; left: 1rem; right: 1rem; top: 1rem; display: flex; flex-wrap: wrap; gap: .5rem; z-index: 3; }
+    .sdh-badge-blue, .sdh-badge-green, .sdh-badge-yellow, .sdh-badge-red { border-radius: 999px; padding: .45rem .7rem; font-size: .78rem; font-weight: 800; border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(12px); }
+    .sdh-badge-blue { background: rgba(59,130,246,.22); color: #dbeafe; }
+    .sdh-badge-green { background: rgba(16,185,129,.22); color: #d1fae5; }
+    .sdh-badge-yellow { background: rgba(245,158,11,.24); color: #fef3c7; }
+    .sdh-badge-red { background: rgba(239,68,68,.26); color: #fee2e2; }
+    .sdh-status-dot { width: .65rem; height: .65rem; border-radius: 999px; background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.12); }
+    .sdh-status-dot-active { background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.14); }
+    .sdh-mini-stat { border: 1px solid rgb(51 65 85); border-radius: 1rem; background: rgba(2,6,23,.68); padding: .8rem; }
+    .sdh-mini-stat span { display: block; color: rgb(148 163 184); font-size: .72rem; }
+    .sdh-mini-stat strong { color: white; }
+    .sdh-test-card { border: 1px solid rgb(51 65 85); border-radius: 1rem; background: rgba(15,23,42,.86); padding: 1rem; color: rgb(226 232 240); transition: .18s ease; }
+    .sdh-test-card:hover, .sdh-test-card-active { border-color: rgb(34 211 238); transform: translateY(-1px); box-shadow: 0 16px 35px rgba(34,211,238,.1); }
+    .sdh-test-card strong, .sdh-test-card small { display: block; }
+    .sdh-test-card small { color: rgb(148 163 184); margin-top: .35rem; }
     .sdh-input { width: 100%; border-radius: 0.75rem; border: 1px solid rgb(51 65 85); background: rgba(2, 6, 23, .82); color: white; padding: .75rem 1rem; outline: none; }
     .sdh-input:focus { border-color: rgb(34 211 238); box-shadow: 0 0 0 4px rgba(34, 211, 238, .12); }
     .sdh-label { display: block; font-size: .75rem; color: rgb(203 213 225); margin-bottom: .35rem; }
@@ -252,6 +386,11 @@ interface SdhPatientOption {
 export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   private sdhStorage = inject(SilentDiseaseHunterStorageService);
   private sdhSupabase = inject(SupabaseService);
+  private sdhHandTracker = inject(HandTrackerService);
+  private sdhInterpreter = inject(SilentDiseaseHunterInterpretationService);
+
+  @ViewChild('sdhVideo') sdhVideoRef?: ElementRef<HTMLVideoElement>;
+  @ViewChild('sdhCanvas') sdhCanvasRef?: ElementRef<HTMLCanvasElement>;
 
   sdhPatients = signal<SdhPatientOption[]>([]);
   sdhMonitoring = signal(false);
@@ -263,6 +402,41 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   sdhSignalQuality = signal(70);
   sdhDoctorNote = '';
   sdhSelectedPatientId = 'umumiy';
+
+  sdhMirrorPreview = false;
+  sdhCameraReady = signal(false);
+  sdhMicReady = signal(false);
+  sdhAdvancedRunning = signal(false);
+  sdhAdvancedTestMode: 'automatic' | 'manual' = 'manual';
+  sdhActiveTestId = signal<SdhAdvancedTestId | null>(null);
+  sdhCountdown = signal(0);
+  sdhAdvancedProgress = signal(0);
+  sdhAdvancedWarning = signal('');
+  sdhFeedbackMessage = signal('Test boshlanishini kutyapti');
+  sdhFeedbackTone = signal<SdhFeedbackTone>('blue');
+  sdhHandDetected = signal(false);
+  sdhHandSkeletonQuality = signal(0);
+  sdhAdvancedCompletedTests = signal<SdhAdvancedTestId[]>([]);
+  sdhAdvancedAnalysis = signal<import('../../services/silent-disease-hunter-interpretation').SdhAdvancedGeminiAnalysis | null>(null);
+  sdhAdvancedSignalQuality = signal({ camera: 58, microphone: 55, manual: 70, skeleton: 0 });
+  sdhAdvancedScores = signal({
+    breathing: 66, facial: 68, hand: 62, voice: 64, cardiac: 61, signal: 58, stability: 65
+  });
+  sdhAdvancedProtocol: SdhProtocolStep[] = [
+    { id: 'breathing', titleUz: '1. Nafas testi', durationSec: 30, instructionUz: 'Oddiy nafas oling, keyin chuqur nafas chiqarish va 10 soniya xavfsiz nafas ushlab turish bosqichlari baholanadi.', tasksUz: ['Tinch nafas: 30 soniya', 'Chuqur nafas olib sekin chiqaring', '10 soniya xavfsiz ushlab turing', 'Qisqa jumlani o‘qing'] },
+    { id: 'facial', titleUz: '2. Yuz mimika testi', durationSec: 35, instructionUz: 'Tabassum, qosh ko‘tarish, ko‘zni yumish, lab cho‘chchaytirish, og‘iz ochish va yonoq shishirish mashqlarini bajaring.', tasksUz: ['Tabassum 5 soniya', 'Qoshlarni ko‘taring', 'Ko‘zlarni mahkam yuming', 'Lab va yonoq nazorati'] },
+    { id: 'hand', titleUz: '3. Qo‘l motorikasi testi', durationSec: 40, instructionUz: 'Qo‘lni kameraga ko‘rsating. Skeleton yashil chiziqlar bilan chiqadi; ochish-yopish, pinch, OK, thumbs-up va tremor monitoring bajariladi.', tasksUz: ['Kaftni ochish-yopish', 'Barmoqlarga tekkizish', 'OK / thumbs-up / pinch', '20 soniya stabil ushlash'] },
+    { id: 'voice', titleUz: '4. Yo‘talish va ovoz testi', durationSec: 35, instructionUz: '3 marta yo‘taling, “Aa” tovushini 5 soniya cho‘zing va berilgan matnni bir maromda o‘qing.', tasksUz: ['3 marta yo‘talish', '“Aa” tovushini cho‘zish', 'Matnni o‘qish', 'Pauza va nutq ritmini kuzatish'] },
+    { id: 'cardiac', titleUz: '5. Yurak holati testi', durationSec: 30, instructionUz: 'Tinch holatda turing. Ko‘krak/yelka mikroharakati, manual HR/HRV/SpO2 va simptom javoblari risk signali sifatida birlashtiriladi.', tasksUz: ['Ko‘krak mikroharakati', 'Barmoq kamera pulse demo signali', 'HR/HRV/SpO2 manual input', 'Ko‘krak og‘rig‘i va bosh aylanish savollari'] }
+  ];
+
+  private sdhAdvancedTimer: number | null = null;
+  private sdhAdvancedRaf: number | null = null;
+  private sdhAudioContext: AudioContext | null = null;
+  private sdhAnalyser: AnalyserNode | null = null;
+  private sdhAudioBuffer = new Uint8Array(128);
+  private sdhFrameSamples: number[] = [];
+  private sdhAutoQueue: SdhAdvancedTestId[] = [];
 
   sdhInput: SdhInputSnapshot = {
     patientId: 'umumiy',
@@ -300,6 +474,7 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.sdhStopAdvancedProtocol();
     this.sdhStopMonitoring();
   }
 
@@ -313,6 +488,289 @@ export class SilentDiseaseHunterComponent implements OnInit, OnDestroy {
         name: String(record.patient_name ?? record.name ?? record.title ?? 'Bemor profili')
       };
     }));
+  }
+
+
+  sdhProtocolOverview(): string[] {
+    return this.sdhAdvancedProtocol.map((step) => step.titleUz);
+  }
+
+  sdhActiveStep(): SdhProtocolStep | null {
+    const id = this.sdhActiveTestId();
+    return this.sdhAdvancedProtocol.find((step) => step.id === id) ?? null;
+  }
+
+  sdhFeedbackClass(): string {
+    return `sdh-badge-${this.sdhFeedbackTone()}`;
+  }
+
+  async sdhStartAutomaticProtocol() {
+    this.sdhAutoQueue = this.sdhAdvancedProtocol.map((step) => step.id);
+    await this.sdhRunNextAutomaticStep();
+  }
+
+  async sdhStartManualTest(id: SdhAdvancedTestId) {
+    this.sdhAutoQueue = [];
+    await this.sdhStartAdvancedTest(id, 'manual');
+  }
+
+  private async sdhRunNextAutomaticStep() {
+    const next = this.sdhAutoQueue.shift();
+    if (!next) {
+      this.sdhAdvancedRunning.set(false);
+      this.sdhActiveTestId.set(null);
+      this.sdhFeedbackTone.set('green');
+      this.sdhFeedbackMessage.set('Avtomatik protokol yakunlandi. Yakuniy tahlilni hisoblash mumkin.');
+      return;
+    }
+    await this.sdhStartAdvancedTest(next, 'automatic');
+  }
+
+  private async sdhStartAdvancedTest(id: SdhAdvancedTestId, mode: 'automatic' | 'manual') {
+    const step = this.sdhAdvancedProtocol.find((x) => x.id === id);
+    if (!step) return;
+    this.sdhAdvancedTestMode = mode;
+    this.sdhAdvancedRunning.set(true);
+    this.sdhActiveTestId.set(id);
+    this.sdhCountdown.set(step.durationSec);
+    this.sdhAdvancedProgress.set(0);
+    this.sdhFrameSamples = [];
+    this.sdhFeedbackTone.set('blue');
+    this.sdhFeedbackMessage.set(`${step.titleUz} boshlandi. Instruktsiyani bajaring.`);
+    await this.sdhEnsureAdvancedMedia();
+    if (this.sdhAdvancedTimer) window.clearInterval(this.sdhAdvancedTimer);
+    this.sdhAdvancedTimer = window.setInterval(() => {
+      const left = this.sdhCountdown() - 1;
+      this.sdhCountdown.set(Math.max(0, left));
+      this.sdhAdvancedProgress.set(this.sdhClamp(((step.durationSec - Math.max(0, left)) / step.durationSec) * 100, 0, 100));
+      this.sdhUpdateAdvancedScores(id);
+      if (left <= 0) {
+        if (this.sdhAdvancedTimer) window.clearInterval(this.sdhAdvancedTimer);
+        this.sdhAdvancedTimer = null;
+        this.sdhMarkCompleted(id);
+        if (mode === 'automatic') void this.sdhRunNextAutomaticStep();
+        else this.sdhAdvancedRunning.set(false);
+      }
+    }, 1000);
+  }
+
+  async sdhEnsureAdvancedMedia() {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      this.sdhAdvancedWarning.set('Brauzer kamera/mikrofon APIlarini qo‘llab-quvvatlamaydi. Manual fallback ishlaydi.');
+      return;
+    }
+    if (!this.sdhMediaStream) {
+      try {
+        this.sdhMediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+      } catch {
+        this.sdhAdvancedWarning.set('Signal sifati past. Kamera yoki mikrofon ruxsati berilmadi. Natija ishonchliligi kamayishi mumkin, lekin test davom etadi.');
+        return;
+      }
+    }
+    const video = this.sdhVideoRef?.nativeElement;
+    if (video && video.srcObject !== this.sdhMediaStream) {
+      video.srcObject = this.sdhMediaStream;
+      await video.play().catch(() => undefined);
+    }
+    this.sdhCameraReady.set(this.sdhMediaStream.getVideoTracks().some((track) => track.readyState === 'live'));
+    this.sdhMicReady.set(this.sdhMediaStream.getAudioTracks().some((track) => track.readyState === 'live'));
+    if (this.sdhMicReady() && !this.sdhAnalyser) this.sdhSetupAudioAnalyser(this.sdhMediaStream);
+    void this.sdhHandTracker.initialize();
+    if (!this.sdhAdvancedRaf) this.sdhAdvancedLoop();
+  }
+
+  sdhStopAdvancedProtocol() {
+    this.sdhAdvancedRunning.set(false);
+    this.sdhActiveTestId.set(null);
+    this.sdhCountdown.set(0);
+    this.sdhAdvancedProgress.set(0);
+    this.sdhAutoQueue = [];
+    if (this.sdhAdvancedTimer) window.clearInterval(this.sdhAdvancedTimer);
+    this.sdhAdvancedTimer = null;
+    if (this.sdhAdvancedRaf) cancelAnimationFrame(this.sdhAdvancedRaf);
+    this.sdhAdvancedRaf = null;
+    this.sdhAudioContext?.close().catch(() => undefined);
+    this.sdhAudioContext = null;
+    this.sdhAnalyser = null;
+  }
+
+  private sdhSetupAudioAnalyser(stream: MediaStream) {
+    try {
+      this.sdhAudioContext = new AudioContext();
+      const source = this.sdhAudioContext.createMediaStreamSource(stream);
+      this.sdhAnalyser = this.sdhAudioContext.createAnalyser();
+      this.sdhAnalyser.fftSize = 256;
+      source.connect(this.sdhAnalyser);
+    } catch {
+      this.sdhMicReady.set(false);
+      this.sdhAdvancedWarning.set('Mikrofon analizatori ishga tushmadi. Ovoz testi manual modega o‘tdi.');
+    }
+  }
+
+  private sdhAdvancedLoop = () => {
+    const video = this.sdhVideoRef?.nativeElement;
+    const canvas = this.sdhCanvasRef?.nativeElement;
+    if (video && canvas) {
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 400;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(34,211,238,.9)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(12, 12, w - 24, h - 24);
+        const handResult = this.sdhHandTracker.detect(video, performance.now());
+        this.sdhDrawHandSkeleton(ctx, handResult, w, h);
+        this.sdhSampleFrame(video, ctx);
+      }
+    }
+    this.sdhAdvancedRaf = requestAnimationFrame(this.sdhAdvancedLoop);
+  };
+
+  private sdhDrawHandSkeleton(ctx: CanvasRenderingContext2D, handResult: NormalizedHandLandmarkerResult | null, w: number, h: number) {
+    const hand = handResult?.landmarks?.[0];
+    this.sdhHandDetected.set(!!hand?.length);
+    this.sdhHandSkeletonQuality.set(hand?.length ? this.sdhClamp((handResult?.handedness?.[0]?.[0]?.score ?? .7) * 100, 1, 99) : 0);
+    const quality = this.sdhHandSkeletonQuality();
+    this.sdhAdvancedSignalQuality.update((q) => ({ ...q, skeleton: quality }));
+    if (!hand?.length) {
+      if (this.sdhActiveTestId() === 'hand') {
+        this.sdhFeedbackTone.set('yellow');
+        this.sdhFeedbackMessage.set('Qo‘lni kameraga yaqinroq tuting. Kaft to‘liq ko‘rinmayapti.');
+      }
+      return;
+    }
+    const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 4;
+    for (const [a,b] of connections) {
+      const p1 = hand[a]; const p2 = hand[b];
+      if (!p1 || !p2) continue;
+      ctx.beginPath(); ctx.moveTo(p1.x * w, p1.y * h); ctx.lineTo(p2.x * w, p2.y * h); ctx.stroke();
+    }
+    ctx.fillStyle = '#86efac';
+    for (const p of hand) { ctx.beginPath(); ctx.arc(p.x * w, p.y * h, 4, 0, Math.PI * 2); ctx.fill(); }
+    if (this.sdhActiveTestId() === 'hand') {
+      this.sdhFeedbackTone.set(quality > 55 ? 'green' : 'yellow');
+      this.sdhFeedbackMessage.set(quality > 55 ? 'Mashq to‘g‘ri bajarilmoqda, skeleton aniqlanyapti.' : 'Barmoqlar yetarli aniqlanmadi. Qo‘lni yorug‘roq joyga olib keling.');
+    }
+  }
+
+  private sdhSampleFrame(video: HTMLVideoElement, ctx: CanvasRenderingContext2D) {
+    try {
+      ctx.drawImage(video, 0, 0, 96, 60);
+      const data = ctx.getImageData(0, 0, 96, 60).data;
+      let light = 0;
+      for (let i = 0; i < data.length; i += 16) light += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const brightness = this.sdhClamp(light / (data.length / 16), 1, 255);
+      const cameraQuality = this.sdhClamp((brightness / 255) * 70 + (video.readyState >= 2 ? 25 : 0), 5, 98);
+      this.sdhFrameSamples.push(cameraQuality);
+      this.sdhFrameSamples = this.sdhFrameSamples.slice(-90);
+      let micQuality = this.sdhMicReady() ? 62 : 35;
+      if (this.sdhAnalyser) {
+        this.sdhAnalyser.getByteTimeDomainData(this.sdhAudioBuffer);
+        const amp = this.sdhAudioBuffer.reduce((sum, x) => sum + Math.abs(x - 128), 0) / this.sdhAudioBuffer.length;
+        micQuality = this.sdhClamp(amp * 4 + 35, 10, 98);
+      }
+      const avgCamera = this.sdhClamp(this.sdhFrameSamples.reduce((a,b)=>a+b, 0) / Math.max(1, this.sdhFrameSamples.length), 1, 98);
+      this.sdhAdvancedSignalQuality.set({ camera: avgCamera, microphone: micQuality, manual: this.sdhInput.questionnaireProvided ? 78 : 45, skeleton: this.sdhHandSkeletonQuality() });
+      if (avgCamera < 35 && this.sdhActiveTestId()) {
+        this.sdhFeedbackTone.set('yellow');
+        this.sdhFeedbackMessage.set('Signal sifati past. Natija ishonchliligi kamayishi mumkin. Davom etish mumkin, lekin ehtiyotkor talqin qiling.');
+      }
+    } catch { /* canvas may be unavailable before video metadata */ }
+  }
+
+  private sdhUpdateAdvancedScores(id: SdhAdvancedTestId) {
+    const q = this.sdhAdvancedSignalQuality();
+    const base = this.sdhClamp((q.camera + q.microphone + q.manual + Math.max(35, q.skeleton)) / 4, 1, 99);
+    this.sdhAdvancedScores.update((scores) => {
+      const next = { ...scores };
+      if (id === 'breathing') next.breathing = this.sdhClamp(base - this.sdhInput.dyspnea * .18 + (this.sdhInput.spo2 ? Math.min(10, (this.sdhInput.spo2 - 94) * 2) : 0), 1, 99);
+      if (id === 'facial') next.facial = this.sdhClamp(q.camera * .75 + (this.sdhInput.neurologicalAsymmetry ? 20 : 18), 1, 99);
+      if (id === 'hand') next.hand = this.sdhClamp(q.skeleton * .72 + q.camera * .22 + (this.sdhHandDetected() ? 8 : -10), 1, 99);
+      if (id === 'voice') next.voice = this.sdhClamp(q.microphone * .78 + (100 - this.sdhInput.stress) * .1, 1, 99);
+      if (id === 'cardiac') next.cardiac = this.sdhClamp(q.camera * .25 + (this.sdhInput.heartRate ? 78 - Math.abs(this.sdhInput.heartRate - 72) * .6 : 58) + (this.sdhInput.hrv ? Math.min(12, this.sdhInput.hrv / 5) : 0), 1, 99);
+      next.signal = this.sdhClamp((q.camera + q.microphone + q.manual + Math.max(0, q.skeleton)) / 4, 1, 99);
+      next.stability = this.sdhClamp((next.breathing + next.facial + next.hand + next.voice + next.cardiac) / 5, 1, 99);
+      return next;
+    });
+    this.sdhFeedbackTone.set(base > 60 ? 'green' : base > 35 ? 'yellow' : 'red');
+    if (this.sdhActiveTestId() !== 'hand') this.sdhFeedbackMessage.set(base > 60 ? 'To‘g‘ri bajarildi, signal yetarli.' : 'Signal past yoki harakat aniqlanmadi. Instruktsiyani aniqroq bajaring.');
+  }
+
+  private sdhMarkCompleted(id: SdhAdvancedTestId) {
+    this.sdhAdvancedCompletedTests.update((items) => items.includes(id) ? items : [...items, id]);
+    this.sdhFeedbackTone.set('green');
+    this.sdhFeedbackMessage.set('Mini-test yakunlandi. Keyingi testga o‘tish mumkin.');
+  }
+
+  sdhScoreRows() {
+    const s = this.sdhAdvancedScores();
+    return [
+      { label: 'Nafas stabiliteti', value: s.breathing },
+      { label: 'Mimika simmetriyasi', value: s.facial },
+      { label: 'Qo‘l motorikasi', value: s.hand },
+      { label: 'Ovoz/nutq', value: s.voice },
+      { label: 'Yurak signali', value: s.cardiac },
+      { label: 'Signal sifati', value: s.signal }
+    ];
+  }
+
+  async sdhRunAdvancedAnalysis() {
+    if (this.sdhSelectedPatientId === 'umumiy') {
+      this.sdhAdvancedWarning.set('Natijani patient profiliga saqlash uchun avval bemor profilini tanlang. Eski Umumiy profil ma’lumotlari o‘zgartirilmaydi.');
+      return;
+    }
+    const scores = this.sdhAdvancedScores();
+    const q = this.sdhAdvancedSignalQuality();
+    const riskScores = {
+      breathingRisk: 100 - scores.breathing, facialRisk: 100 - scores.facial, handRisk: 100 - scores.hand, voiceRisk: 100 - scores.voice, cardiacRisk: 100 - scores.cardiac, overallRisk: 100 - scores.stability, physiologicalStability: scores.stability
+    };
+    const features = this.sdhExtractFeatures(this.sdhBuildSnapshot());
+    const organRisks = this.sdhFuseOrganRisks(features).map((organ) => {
+      if (organ.key === 'lungs') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.breathingRisk) / 2, 1, 99) };
+      if (organ.key === 'brain') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.handRisk + riskScores.facialRisk) / 3, 1, 99) };
+      if (organ.key === 'heart') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.cardiacRisk) / 2, 1, 99) };
+      if (organ.key === 'stress') return { ...organ, percent: this.sdhClamp((organ.percent + riskScores.voiceRisk) / 2, 1, 99) };
+      return organ;
+    });
+    const emergencyFlags = this.sdhAdvancedEmergencyFlags(riskScores, organRisks);
+    const analysis = await this.sdhInterpreter.sdhInterpretAdvanced({
+      patientId: this.sdhSelectedPatientId,
+      signalQuality: scores.signal,
+      completedTests: this.sdhAdvancedCompletedTests(),
+      testStats: riskScores,
+      organRisks: organRisks.map((x) => ({ nameUz: x.nameUz, percent: x.percent, levelUz: this.sdhRiskLevel(x.percent) })),
+      emergencyFlags,
+      previousTrend: this.sdhStorage.sdhListAdvanced(this.sdhSelectedPatientId).slice(0, 8).map((x) => x.riskScores?.['overallRisk'] ?? 0)
+    });
+    this.sdhAdvancedAnalysis.set(analysis);
+    const result: SdhAdvancedTestResult = {
+      patientId: this.sdhSelectedPatientId, sessionId: `silentDiseaseHunter-${Date.now()}`, createdAt: new Date().toISOString(), testMode: this.sdhAdvancedTestMode, completedTests: this.sdhAdvancedCompletedTests(), signalQuality: q,
+      breathingResults: { sdhRespiratoryRhythmScore: scores.breathing, sdhBreathStabilityScore: scores.breathing, sdhChestMotionScore: q.camera, sdhDyspneaSignalScore: riskScores.breathingRisk, sdhBreathRecoveryScore: scores.stability, sdhSignalQualityBreathing: q.camera },
+      facialMimicResults: { sdhFacialSymmetryScore: scores.facial, sdhSmileSymmetryScore: scores.facial, sdhEyeClosureScore: scores.facial, sdhBrowMovementScore: scores.facial, sdhLipControlScore: scores.facial, sdhFacialFatigueScore: 100 - scores.facial, sdhMicroExpressionVariability: features.microExpressionVariability, sdhFacialSignalQuality: q.camera },
+      handMotorResults: { sdhHandDetected: this.sdhHandDetected(), sdhHandSkeletonQuality: q.skeleton, sdhGestureAccuracyScore: scores.hand, sdhFingerTappingScore: scores.hand, sdhFineMotorScore: scores.hand, sdhTremorSignalScore: 100 - scores.hand, sdhMovementSpeedScore: scores.hand, sdhMotorSymmetryScore: scores.hand, sdhReactionTimeScore: scores.hand, sdhNeuromotorRiskSignal: riskScores.handRisk },
+      coughVoiceReadingResults: { sdhCoughPatternScore: scores.voice, sdhVoiceStabilityScore: scores.voice, sdhVoiceTremorScore: 100 - scores.voice, sdhSpeechSpeedScore: scores.voice, sdhPauseFrequencyScore: riskScores.voiceRisk, sdhBreathDuringSpeechScore: scores.breathing, sdhVocalStressIndex: riskScores.voiceRisk, sdhRespiratoryVoiceSignal: scores.voice },
+      cardiacResults: { sdhHeartRateSignal: this.sdhInput.heartRate ?? 'manual kiritilmagan', sdhHRVSignal: this.sdhInput.hrv ?? 'manual kiritilmagan', sdhPulseStabilityScore: scores.cardiac, sdhCardiacMotionScore: q.camera, sdhArrhythmiaRiskSignal: riskScores.cardiacRisk, sdhCardiacSymptomScore: this.sdhInput.chestDiscomfort ? 78 : 24, sdhCardiorespiratoryRiskScore: this.sdhClamp((riskScores.cardiacRisk + riskScores.breathingRisk) / 2, 1, 99), sdhEmergencyCardiacFlag: emergencyFlags.length > 0 },
+      manualInputs: { dyspnea: this.sdhInput.dyspnea, fatigue: this.sdhInput.fatigue, stress: this.sdhInput.stress, chestDiscomfort: this.sdhInput.chestDiscomfort, neurologicalAsymmetry: this.sdhInput.neurologicalAsymmetry },
+      wearableInputs: { heartRate: this.sdhInput.heartRate, hrv: this.sdhInput.hrv, spo2: this.sdhInput.spo2, sleepHours: this.sdhInput.sleepHours },
+      labInputs: { glucose: this.sdhInput.glucose, hbA1c: this.sdhInput.hbA1c, hemoglobin: this.sdhInput.hemoglobin, crp: this.sdhInput.crp, creatinine: this.sdhInput.creatinine, alt: this.sdhInput.alt },
+      riskScores, organRisks, geminiAnalysis: analysis.source === 'gemini' ? analysis : null, fallbackAnalysis: analysis.source === 'local' ? analysis : null, emergencyFlags, recommendations: analysis.keyingiTavsiyalar, doctorSummary: analysis.shifokorUchunXulosa, patientSummary: analysis.bemorUchunXulosa, rawMetrics: { features, q, scores }, chartData: { radar: this.sdhScoreRows(), bars: this.sdhScoreRows(), timeline: [...this.sdhTimeline, riskScores.overallRisk] }
+    };
+    this.sdhStorage.sdhSaveAdvanced(result);
+    this.sdhAdvancedWarning.set(analysis.source === 'local' ? 'AI chuqur tahlili vaqtincha ishlamadi, lokal baholash ko‘rsatildi.' : 'Gemini chuqur tahlili va kengaytirilgan natija patient profiliga saqlandi.');
+  }
+
+  private sdhAdvancedEmergencyFlags(riskScores: Record<string, number>, organRisks: SdhOrganRisk[]): string[] {
+    const flags: string[] = [];
+    if (this.sdhInput.spo2 && this.sdhInput.spo2 < 90) flags.push('Juda past SpO2');
+    if (this.sdhInput.chestDiscomfort && this.sdhInput.dyspnea > 60) flags.push('Ko‘krak og‘rig‘i + nafas qisishi');
+    if (this.sdhInput.neurologicalAsymmetry || riskScores['facialRisk'] > 70 || riskScores['handRisk'] > 70) flags.push('Yuz/qo‘l asimmetriyasi yoki nutq/motorika signali');
+    if (organRisks.some((x) => x.key === 'heart' && x.percent > 80)) flags.push('Yurak ritmi/mikroharakat yuqori risk signali');
+    return flags;
   }
 
   async sdhStartMonitoring() {

@@ -59,6 +59,10 @@ import { Router, RouterModule } from '@angular/router';
             <mat-icon>radar</mat-icon>
             <span class="font-medium">Yashirin kasalliklarni erta aniqlash</span>
           </a>
+          <div class="ml-2 mr-1 rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-cyan-800">
+            <p class="font-bold">Silent Disease Hunter — kengaytirilgan test natijalari</p>
+            <p>{{ sdhAdvancedResultCount() }} ta lokal patient natijasi saqlangan</p>
+          </div>
           <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
@@ -127,9 +131,22 @@ export class DashboardComponent implements OnInit {
   private router = inject(Router);
 
   userEmail = signal<string | undefined>(undefined);
+  sdhAdvancedResultCount = signal(0);
 
   ngOnInit() {
     this.userEmail.set(this.supabase.user()?.email);
+    this.sdhLoadAdvancedResultCount();
+  }
+
+  private sdhLoadAdvancedResultCount() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('abdullohAI_sdhAdvancedTestResults');
+      const parsed = raw ? JSON.parse(raw) : [];
+      this.sdhAdvancedResultCount.set(Array.isArray(parsed) ? parsed.length : 0);
+    } catch {
+      this.sdhAdvancedResultCount.set(0);
+    }
   }
 
   async logout() {
