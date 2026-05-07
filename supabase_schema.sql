@@ -216,3 +216,52 @@ CREATE POLICY "Users can delete chats for owned cases" ON chats
 -- Bucket must be named: medical-uploads
 -- Suggested storage policy condition:
 -- (auth.uid()::text = (storage.foldername(name))[1])
+
+-- Silent Disease Hunter natijalari: mavjud jadval va eski ma'lumotlarga tegmaydigan alohida saqlash qatlami.
+CREATE TABLE IF NOT EXISTS public.silent_disease_hunter_results (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id text NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  overall_risk integer NOT NULL DEFAULT 0,
+  physiological_stability integer NOT NULL DEFAULT 0,
+  confidence integer NOT NULL DEFAULT 0,
+  signal_quality integer NOT NULL DEFAULT 0,
+  emergency_warning boolean NOT NULL DEFAULT false,
+  used_inputs jsonb NOT NULL DEFAULT '[]'::jsonb,
+  input_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  features jsonb NOT NULL DEFAULT '{}'::jsonb,
+  organ_risks jsonb NOT NULL DEFAULT '[]'::jsonb,
+  differential_reasoning jsonb NOT NULL DEFAULT '[]'::jsonb,
+  timeline jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ai_summary text NOT NULL DEFAULT '',
+  ai_findings jsonb NOT NULL DEFAULT '[]'::jsonb,
+  patient_explanation text NOT NULL DEFAULT '',
+  doctor_note text NOT NULL DEFAULT '',
+  recommendations jsonb NOT NULL DEFAULT '[]'::jsonb
+);
+
+ALTER TABLE public.silent_disease_hunter_results ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_sdh_results_patient_id ON public.silent_disease_hunter_results(patient_id);
+CREATE INDEX IF NOT EXISTS idx_sdh_results_created_at ON public.silent_disease_hunter_results(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sdh_results_user_id ON public.silent_disease_hunter_results(user_id);
+
+DROP POLICY IF EXISTS "silent disease hunter select own" ON public.silent_disease_hunter_results;
+CREATE POLICY "silent disease hunter select own"
+ON public.silent_disease_hunter_results
+FOR SELECT
+USING (auth.uid() = user_id OR user_id IS NULL);
+
+DROP POLICY IF EXISTS "silent disease hunter insert own" ON public.silent_disease_hunter_results;
+CREATE POLICY "silent disease hunter insert own"
+ON public.silent_disease_hunter_results
+FOR INSERT
+WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+
+DROP POLICY IF EXISTS "silent disease hunter update own" ON public.silent_disease_hunter_results;
+CREATE POLICY "silent disease hunter update own"
+ON public.silent_disease_hunter_results
+FOR UPDATE
+USING (auth.uid() = user_id OR user_id IS NULL)
+WITH CHECK (auth.uid() = user_id OR user_id IS NULL);

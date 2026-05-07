@@ -15,6 +15,7 @@ import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-
 import { NeuroMotorComponent } from './components/neuromotor/neuromotor';
 import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
 import { HeartMicroImpulseComponent } from './components/heart-micro-impulse/heart-micro-impulse';
+import { SilentDiseaseHunterComponent } from './components/silent-disease-hunter/silent-disease-hunter';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -28,6 +29,7 @@ export const routes: Routes = [
       { path: 'neuromotor', component: NeuroMotorComponent },
       { path: 'nafas-ovoz', component: RespiratoryVoiceComponent },
       { path: 'yurak-mikro-impuls', component: HeartMicroImpulseComponent },
+      { path: 'silent-disease-hunter', component: SilentDiseaseHunterComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },

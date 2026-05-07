@@ -54,6 +54,11 @@ import { Router, RouterModule } from '@angular/router';
             <mat-icon>favorite</mat-icon>
             <span class="font-medium">Yurak Mikro Impuls</span>
           </a>
+          <a routerLink="/silent-disease-hunter" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+             class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
+            <mat-icon>radar</mat-icon>
+            <span class="font-medium">Yashirin kasalliklarni erta aniqlash</span>
+          </a>
           <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
