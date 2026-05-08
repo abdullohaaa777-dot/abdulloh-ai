@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { CaseData } from './ai';
 import { OrganBioelectricResult } from '../models/organ-bioelectric';
+import { HomeostasisResult } from '../models/homeostasis';
 
 @Injectable({
   providedIn: 'root'
@@ -218,6 +219,66 @@ export class SupabaseService {
       .select()
       .single();
     return { data, error };
+  }
+
+
+  async saveHomeostasisResult(result: HomeostasisResult, patientId?: string | null) {
+    const userId = this.user()?.id ?? 'demo-user';
+    const payload = {
+      user_id: userId,
+      patient_id: patientId ?? null,
+      input_data: result.inputData,
+      calculated_scores: result.calculatedScores,
+      ai_analysis: JSON.stringify(result.aiAnalysis),
+      trend_status: result.trendStatus,
+      risk_level: result.riskLevel,
+      five_year_projection: result.fiveYearProjection,
+      ten_year_projection: result.tenYearProjection,
+      organ_interaction_map: result.organInteractionMap,
+      recommendations: result.recommendations
+    };
+
+    if (this.isDemoMode) {
+      if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
+      const results = JSON.parse(localStorage.getItem('demo-homeostasis-results') || '[]');
+      const newResult = { ...result, ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+      results.unshift(newResult);
+      localStorage.setItem('demo-homeostasis-results', JSON.stringify(results));
+      return { data: newResult, error: null };
+    }
+
+    const { data, error } = await this.supabase
+      .from('homeostasis_results')
+      .insert([payload])
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  async getHomeostasisResults() {
+    if (this.isDemoMode) {
+      if (!this.isBrowser()) return { data: [], error: null };
+      const results = JSON.parse(localStorage.getItem('demo-homeostasis-results') || '[]');
+      return { data: results, error: null };
+    }
+
+    const { data, error } = await this.supabase
+      .from('homeostasis_results')
+      .select('*')
+      .order('created_at', { ascending: false });
+    const mapped = data?.map((row: Record<string, unknown>) => ({
+      inputData: row['input_data'],
+      calculatedScores: row['calculated_scores'],
+      aiAnalysis: typeof row['ai_analysis'] === 'string' ? JSON.parse(row['ai_analysis']) : row['ai_analysis'],
+      trendStatus: row['trend_status'],
+      riskLevel: row['risk_level'],
+      fiveYearProjection: row['five_year_projection'],
+      tenYearProjection: row['ten_year_projection'],
+      organInteractionMap: row['organ_interaction_map'],
+      recommendations: row['recommendations'],
+      createdAt: row['created_at']
+    }));
+    return { data: mapped, error };
   }
 
 

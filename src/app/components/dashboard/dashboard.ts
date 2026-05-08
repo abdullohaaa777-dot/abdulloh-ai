@@ -51,6 +51,11 @@ import { Router, RouterModule } from '@angular/router';
             <mat-icon>hub</mat-icon>
             <span class="font-medium">Organlararo Bioelektr Indeks</span>
           </a>
+          <a routerLink="/homeostasis-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+             class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
+            <mat-icon>analytics</mat-icon>
+            <span class="font-medium">Homeostaz AI</span>
+          </a>
           <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>

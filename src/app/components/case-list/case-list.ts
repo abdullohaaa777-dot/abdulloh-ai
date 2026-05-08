@@ -57,6 +57,25 @@ import { RouterModule } from '@angular/router';
         </a>
       </div>
 
+      <div class="medical-depth-card p-6 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div class="flex items-start gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+            <mat-icon class="text-3xl">analytics</mat-icon>
+          </div>
+          <div>
+            <h3 class="text-xl font-black text-medical-text">Homeostaz AI natijalari</h3>
+            <p class="text-sm text-medical-text-muted font-medium mt-1">Metabolik trend, glyukoza-insulin, kortizol-stress va elektrolit muvozanatini baholash</p>
+            @if (latestHomeostasisResult()) {
+              <p class="text-xs font-bold text-emerald-600 mt-2">Oxirgi metabolik trend: {{ latestHomeostasisRisk() }}</p>
+            }
+          </div>
+        </div>
+        <a routerLink="/homeostasis-ai" class="btn-primary py-3 px-5">
+          <mat-icon>visibility</mat-icon>
+          Ko‘rish
+        </a>
+      </div>
+
       <div class="grid gap-5">
         @for (case of cases(); track case.id) {
           <a [routerLink]="['/case', case.id]" 
@@ -111,10 +130,16 @@ export class CaseListComponent implements OnInit {
   private supabase = inject(SupabaseService);
   cases = signal<CaseData[]>([]);
   latestOrganResult = signal<Record<string, unknown> | null>(null);
+  latestHomeostasisResult = signal<Record<string, unknown> | null>(null);
 
   latestOrganIndex() {
     const value = this.latestOrganResult()?.['overall_index'];
     return typeof value === 'number' ? value : '—';
+  }
+
+  latestHomeostasisRisk() {
+    const value = this.latestHomeostasisResult()?.['riskLevel'] ?? this.latestHomeostasisResult()?.['risk_level'];
+    return typeof value === 'string' ? value : '—';
   }
 
   async ngOnInit() {
@@ -123,6 +148,8 @@ export class CaseListComponent implements OnInit {
       if (data) this.cases.set(data as unknown as CaseData[]);
       const { data: latestOrganResult } = await this.supabase.getLatestOrganBioelectricResult();
       this.latestOrganResult.set(latestOrganResult as Record<string, unknown> | null);
+      const { data: homeostasisResults } = await this.supabase.getHomeostasisResults();
+      this.latestHomeostasisResult.set(((homeostasisResults ?? [])[0] ?? null) as Record<string, unknown> | null);
     } catch (e) {
       console.error('Failed to load cases:', e);
     }

@@ -14,6 +14,7 @@ import { TreatmentAdherenceComponent } from './components/treatment-adherence/tr
 import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-ai';
 import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
 import { OrganBioelectricIndexComponent } from './components/organ-bioelectric-index/organ-bioelectric-index';
+import { HomeostasisAIComponent } from './components/homeostasis-ai/homeostasis-ai';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -26,6 +27,7 @@ export const routes: Routes = [
       { path: 'dermatology-ai', component: DermatologyAIComponent },
       { path: 'respiratory-voice', component: RespiratoryVoiceComponent },
       { path: 'organ-bioelectric-index', component: OrganBioelectricIndexComponent },
+      { path: 'homeostasis-ai', component: HomeostasisAIComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },

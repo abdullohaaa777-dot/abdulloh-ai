@@ -6,11 +6,41 @@ import {
 } from '@angular/ssr/node';
 import express from 'express';
 import {join} from 'node:path';
+import { GoogleGenAI } from '@google/genai';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
 const angularApp = new AngularNodeAppEngine();
+
+app.use(express.json({ limit: '1mb' }));
+
+app.post('/api/homeostasis-ai', async (req, res) => {
+  const apiKey = process.env['GEMINI_API_KEY'];
+  if (!apiKey) {
+    return res.status(503).json({ error: 'AI kaliti sozlanmagan' });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = `Sen Abdulloh AI platformasining klinik-metabolik tahlil modulisan. Quyidagi bemor ma’lumotlari asosida homeostaz, metabolik xavf, glyukoza-insulin dinamikasi, kortizol-stress o‘qi, energiya tiklanishi, elektrolit muvozanati va organlararo metabolik bog‘liqlikni tahlil qil. Yakuniy diagnoz qo‘yma. Ehtimoliy klinik yo‘nalishlar, xavf darajalari, monitoring rejasi va shifokorga murojaat qilish zarur bo‘lgan holatlarni tartibli o‘zbek tilida tushuntir. Natijani professional, lekin tushunarli qilib ber. Faqat JSON qaytar. Ma’lumotlar: ${JSON.stringify(req.body)}`;
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+    let text = response.text || '{}';
+    if (text.includes('```json')) text = text.split('```json')[1].split('```')[0];
+    if (text.includes('```')) text = text.split('```')[1].split('```')[0];
+    const parsed = JSON.parse(text.trim());
+    return res.json({ analysis: parsed });
+  } catch (error) {
+    console.error('[Homeostasis AI] Server tahlil xatosi:', error);
+    return res.status(500).json({ error: 'AI tahlil vaqtincha ishlamadi' });
+  }
+});
 
 /**
  * Example Express Rest API endpoints can be defined here.
