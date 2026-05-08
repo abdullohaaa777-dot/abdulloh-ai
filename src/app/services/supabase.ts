@@ -2,6 +2,7 @@ import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { CaseData } from './ai';
+import { OrganBioelectricResult } from '../models/organ-bioelectric';
 
 @Injectable({
   providedIn: 'root'
@@ -216,6 +217,62 @@ export class SupabaseService {
       .insert([{ case_id: caseId, role, message }])
       .select()
       .single();
+    return { data, error };
+  }
+
+
+  async saveOrganBioelectricResult(result: OrganBioelectricResult, patientId?: string | null) {
+    const userId = this.user()?.id ?? 'demo-user';
+    const payload = {
+      patient_id: patientId ?? null,
+      doctor_id: userId,
+      user_id: userId,
+      overall_index: result.overallIndex,
+      organ_scores: result.organScores,
+      internal_indexes: result.internalIndexes,
+      network_edges: result.networkEdges,
+      top_problems: result.topProblems,
+      ai_summary: result.aiSummaryUz,
+      recommendations: result.recommendationsUz,
+      raw_test_summary: result.rawTestSummary,
+      confidence_level: result.confidence,
+      disclaimer_shown: result.disclaimerShown
+    };
+
+    if (this.isDemoMode) {
+      if (!this.isBrowser()) return { data: null, error: { message: 'Browser only' } };
+      const results = JSON.parse(localStorage.getItem('demo-organ-bioelectric-results') || '[]');
+      const newResult = {
+        ...payload,
+        id: crypto.randomUUID(),
+        created_at: new Date().toISOString()
+      };
+      results.unshift(newResult);
+      localStorage.setItem('demo-organ-bioelectric-results', JSON.stringify(results));
+      return { data: newResult, error: null };
+    }
+
+    const { data, error } = await this.supabase
+      .from('organ_bioelectric_results')
+      .insert([payload])
+      .select()
+      .single();
+    return { data, error };
+  }
+
+  async getLatestOrganBioelectricResult() {
+    if (this.isDemoMode) {
+      if (!this.isBrowser()) return { data: null, error: null };
+      const results = JSON.parse(localStorage.getItem('demo-organ-bioelectric-results') || '[]');
+      return { data: results[0] ?? null, error: null };
+    }
+
+    const { data, error } = await this.supabase
+      .from('organ_bioelectric_results')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
     return { data, error };
   }
 
