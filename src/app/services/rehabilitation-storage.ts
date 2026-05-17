@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from './supabase';
 
 export type RehabilitationExerciseType = 'standard' | 'fine-motor' | 'coordination' | 'balance';
+export type RehabilitationAiAnalysisStatus = 'pending' | 'completed' | 'failed';
 
 export interface RehabilitationExerciseDefinition {
   id: string;
@@ -22,6 +23,29 @@ export interface RehabilitationJointMetric {
   averageAngle: number;
   idealAngle: number;
   deviation: number;
+}
+
+export interface RehabilitationAiAnalysis {
+  id: string;
+  sessionId: string;
+  patientId: string | null;
+  doctorId: string | null;
+  aiProvider: string;
+  analysisStatus: RehabilitationAiAnalysisStatus;
+  overallSummary: string;
+  movementQualityAnalysis: string;
+  jointProblemAnalysis: string;
+  symmetryAnalysis: string;
+  fatigueAnalysis: string;
+  progressComparison: string;
+  riskWarnings: string[];
+  patientAdvice: string;
+  doctorClinicalNote: string;
+  nextExerciseRecommendation: string;
+  safetyNote: string;
+  rawAiResponse: unknown;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RehabilitationExerciseResult {
@@ -65,6 +89,7 @@ export interface RehabilitationSession {
   clinicalSummary: string;
   patientAdvice: string;
   doctorNote: string;
+  aiAnalysis?: RehabilitationAiAnalysis | null;
   exercises: RehabilitationExerciseResult[];
   chartData: {
     progress: number[];
@@ -119,11 +144,7 @@ export class RehabilitationStorageService {
       exercises: Array.isArray(session.exercises) ? session.exercises : []
     };
 
-    if (typeof window !== 'undefined') {
-      const list = this.rehabilitationListSessions().filter((item) => item.id !== normalized.id);
-      list.unshift(normalized);
-      localStorage.setItem(this.sessionsKey, JSON.stringify(list.slice(0, 200)));
-    }
+    this.rehabilitationPersistSessionLocally(normalized);
 
     if (this.supabase.isConfigured()) {
       try {
@@ -145,8 +166,45 @@ export class RehabilitationStorageService {
           raw_session: normalized
         });
         if (error) return { error: { message: error.message } };
+        await this.rehabilitationSaveExerciseRows(normalized);
       } catch (error) {
         return { error: { message: error instanceof Error ? error.message : 'Reabilitatsiya sessiyasini saqlashda xatolik' } };
+      }
+    }
+
+    return { error: null };
+  }
+
+  async rehabilitationAttachAiAnalysis(session: RehabilitationSession, analysis: RehabilitationAiAnalysis): Promise<{ error: { message: string } | null }> {
+    const updated: RehabilitationSession = { ...session, aiAnalysis: analysis };
+    this.rehabilitationPersistSessionLocally(updated);
+
+    if (this.supabase.isConfigured()) {
+      try {
+        const { error } = await this.supabase.client.from('rehabilitation_ai_analyses').upsert({
+          id: analysis.id,
+          session_id: analysis.sessionId,
+          patient_id: analysis.patientId,
+          doctor_id: analysis.doctorId,
+          ai_provider: analysis.aiProvider,
+          analysis_status: analysis.analysisStatus,
+          overall_summary: analysis.overallSummary,
+          movement_quality_analysis: analysis.movementQualityAnalysis,
+          joint_problem_analysis: analysis.jointProblemAnalysis,
+          symmetry_analysis: analysis.symmetryAnalysis,
+          fatigue_analysis: analysis.fatigueAnalysis,
+          progress_comparison: analysis.progressComparison,
+          risk_warnings: analysis.riskWarnings,
+          patient_advice: analysis.patientAdvice,
+          doctor_clinical_note: analysis.doctorClinicalNote,
+          next_exercise_recommendation: analysis.nextExerciseRecommendation,
+          safety_note: analysis.safetyNote,
+          raw_ai_response: analysis.rawAiResponse,
+          updated_at: analysis.updatedAt
+        });
+        if (error) return { error: { message: error.message } };
+      } catch (error) {
+        return { error: { message: error instanceof Error ? error.message : 'AI tahlilini saqlashda xatolik' } };
       }
     }
 
@@ -176,5 +234,44 @@ export class RehabilitationStorageService {
     const list = this.rehabilitationListPlans().filter((item) => item.id !== normalized.id);
     list.unshift(normalized);
     localStorage.setItem(this.plansKey, JSON.stringify(list.slice(0, 120)));
+  }
+
+  private rehabilitationPersistSessionLocally(session: RehabilitationSession): void {
+    if (typeof window === 'undefined') return;
+    const list = this.rehabilitationListSessions().filter((item) => item.id !== session.id);
+    list.unshift(session);
+    localStorage.setItem(this.sessionsKey, JSON.stringify(list.slice(0, 200)));
+  }
+
+  private async rehabilitationSaveExerciseRows(session: RehabilitationSession): Promise<void> {
+    const exercises = session.exercises.map((exercise) => ({
+      id: exercise.id,
+      session_id: session.id,
+      exercise_name: exercise.exerciseName,
+      exercise_type: exercise.exerciseType,
+      target_body_part: exercise.targetBodyPart,
+      repetitions_done: exercise.repetitionsDone,
+      repetitions_correct: exercise.repetitionsCorrect,
+      repetitions_wrong: exercise.repetitionsWrong,
+      score: exercise.score,
+      accuracy_percent: exercise.accuracyPercent,
+      range_of_motion: exercise.rangeOfMotion,
+      average_speed: exercise.averageSpeed,
+      tremor_score: exercise.tremorScore,
+      error_summary: exercise.errors
+    }));
+    if (exercises.length) await this.supabase.client.from('rehabilitation_exercises').upsert(exercises);
+
+    const jointMetrics = session.exercises.flatMap((exercise) => exercise.jointMetrics.map((metric, index) => ({
+      id: `${exercise.id}-joint-${index}`,
+      exercise_id: exercise.id,
+      joint_name: metric.jointName,
+      min_angle: metric.minAngle,
+      max_angle: metric.maxAngle,
+      average_angle: metric.averageAngle,
+      ideal_angle: metric.idealAngle,
+      deviation: metric.deviation
+    })));
+    if (jointMetrics.length) await this.supabase.client.from('rehabilitation_joint_metrics').upsert(jointMetrics);
   }
 }

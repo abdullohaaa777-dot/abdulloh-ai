@@ -11,6 +11,7 @@ import {
   RehabilitationSession,
   RehabilitationStorageService
 } from '../../services/rehabilitation-storage';
+import { RehabilitationAiService } from '../../services/rehabilitation-ai';
 import { SupabaseService } from '../../services/supabase';
 
 interface RehabilitationPatientOption {
@@ -88,13 +89,24 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
               </div>
             </div>
             <div class="rehab-video-wrap">
-              <video #rehabVideo autoplay muted playsinline class="rehab-video"></video>
-              <canvas #rehabCanvas class="rehab-canvas"></canvas>
+              <video #rehabVideo autoplay muted playsinline class="rehab-video" [class.mirrored]="rehabilitationMirrorPreview()"></video>
+              <canvas #rehabCanvas class="rehab-canvas" [class.mirrored]="rehabilitationMirrorPreview()"></canvas>
               <div class="rehab-badges">
                 <span [class]="rehabilitationFeedbackClass()">{{ rehabilitationFeedback() }}</span>
                 <span class="rehab-badge-blue">Skelet: {{ rehabilitationSkeletonQuality() }}%</span>
                 <span class="rehab-badge-green">Qo‘l: {{ rehabilitationHandDetected() ? 'aniqlandi' : 'kutilmoqda' }}</span>
+                <span class="rehab-badge-blue">Kamera: {{ rehabilitationFacingMode() === 'user' ? 'old' : 'orqa' }} · Mirror {{ rehabilitationMirrorPreview() ? 'ON' : 'OFF' }}</span>
               </div>
+            </div>
+            <div class="border-t border-slate-200 bg-slate-50/70 p-4">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-black text-slate-700">Kamera yo‘nalishini to‘g‘rilash:</span>
+                <button class="rehab-btn-mini" (click)="rehabilitationSetCameraFacing('user')">Old kamera</button>
+                <button class="rehab-btn-mini" (click)="rehabilitationSetCameraFacing('environment')">Orqa kamera</button>
+                <button class="rehab-btn-mini" (click)="rehabilitationToggleMirror()">Mirror rejimni {{ rehabilitationMirrorPreview() ? 'o‘chirish' : 'yoqish' }}</button>
+                <button class="rehab-btn-mini" (click)="rehabilitationCheckSkeletonAlignment()">Skelet mosligini tekshirish</button>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">Mirror faqat video preview va skeleton canvas vizual ko‘rinishiga qo‘llanadi; burchak, simmetriya va hand/pose hisoblash original landmark koordinatalarida qoladi.</p>
             </div>
             <div class="grid md:grid-cols-4 gap-3 p-4 text-sm">
               @for (check of rehabilitationPreflightChecks(); track check.label) {
@@ -156,7 +168,7 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
           </div>
 
           <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-black">Yakuniy natijalar va grafiklar</h2><button class="rehab-btn-secondary" (click)="rehabilitationPrintReport()">Chop etish / PDF</button></div>
+            <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-xl font-black">Yakuniy natijalar va grafiklar</h2><div class="flex flex-wrap gap-2"><button class="rehab-btn-secondary" (click)="rehabilitationRetryAiAnalysis()" [disabled]="!rehabilitationLatestSession() || rehabilitationAiStatus() === 'analyzing'">AI tahlilni qayta ishga tushirish</button><button class="rehab-btn-secondary" (click)="rehabilitationPrintReport()">Chop etish / PDF</button></div></div>
             @if (rehabilitationLatestSession(); as session) {
               <div class="grid sm:grid-cols-4 gap-3 mt-4"><div class="rehab-metric"><p>Umumiy ball</p><strong>{{ session.totalScore }}%</strong></div><div class="rehab-metric"><p>To‘g‘rilik</p><strong>{{ session.accuracyPercent }}%</strong></div><div class="rehab-metric"><p>Charchash</p><strong>{{ session.fatigueIndex }}%</strong></div><div class="rehab-metric"><p>Simmetriya</p><strong>{{ session.symmetryIndex }}%</strong></div></div>
               <div class="grid lg:grid-cols-2 gap-4 mt-4">
@@ -166,6 +178,24 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
                 <div class="rehab-chart"><h3>Harakat trayektoriyasi xaritasi</h3><svg viewBox="0 0 220 140" class="w-full h-40"><polyline points="25,110 60,80 100,45 150,70 195,35" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="6 4"></polyline><polyline [attr.points]="rehabilitationTrajectoryPoints(session)" fill="none" stroke="#2563eb" stroke-width="4"></polyline></svg></div>
               </div>
               <div class="grid lg:grid-cols-2 gap-4 mt-4"><div class="rounded-2xl bg-teal-50 border border-teal-100 p-4"><h3 class="font-black">Bemor uchun tavsiya</h3><p class="text-sm mt-1">{{ session.patientAdvice }}</p></div><div class="rounded-2xl bg-blue-50 border border-blue-100 p-4"><h3 class="font-black">Shifokor uchun klinik xulosa</h3><p class="text-sm mt-1">{{ session.clinicalSummary }}</p></div></div>
+              <section class="mt-4 rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-black text-indigo-950">Abdulloh AI tahlili</h3><p class="text-sm text-slate-500">Server-side tahlil: API kalit frontendda ko‘rinmaydi. Status: {{ session.aiAnalysis?.analysisStatus || rehabilitationAiStatus() }}</p></div>@if (rehabilitationAiStatus() === 'analyzing') {<span class="rehab-pill">Tahlil qilinmoqda...</span>}</div>
+                @if (session.aiAnalysis; as ai) {
+                  <div class="grid lg:grid-cols-2 gap-3 mt-4 text-sm">
+                    <div class="rehab-ai-card"><strong>Umumiy xulosa</strong><p>{{ ai.overallSummary }}</p></div>
+                    <div class="rehab-ai-card"><strong>Harakat sifati</strong><p>{{ ai.movementQualityAnalysis }}</p></div>
+                    <div class="rehab-ai-card"><strong>Bo‘g‘im muammolari</strong><p>{{ ai.jointProblemAnalysis }}</p></div>
+                    <div class="rehab-ai-card"><strong>Simmetriya va charchash</strong><p>{{ ai.symmetryAnalysis }} {{ ai.fatigueAnalysis }}</p></div>
+                    <div class="rehab-ai-card"><strong>Progress solishtiruvi</strong><p>{{ ai.progressComparison }}</p></div>
+                    <div class="rehab-ai-card"><strong>Keyingi mashq tavsiyasi</strong><p>{{ ai.nextExerciseRecommendation }}</p></div>
+                    <div class="rehab-ai-card"><strong>Bemor uchun</strong><p>{{ ai.patientAdvice }}</p></div>
+                    <div class="rehab-ai-card"><strong>Shifokor klinik note</strong><p>{{ ai.doctorClinicalNote }}</p></div>
+                  </div>
+                  <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm"><strong>Xavfsizlik:</strong> {{ ai.safetyNote }} @for (warning of ai.riskWarnings; track warning) { <span class="block mt-1">• {{ warning }}</span> }</div>
+                } @else {
+                  <div class="mt-4 rounded-2xl border border-dashed border-indigo-200 p-4 text-sm text-slate-600">AI tahlil vaqtincha mavjud emas, asosiy natijalar saqlandi. Keyinroq qayta tahlil qilish tugmasidan foydalaning.</div>
+                }
+              </section>
             } @else {
               <div class="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">Hali sessiya saqlanmagan. Mashqni bajarib, “Sessiyani saqlash” tugmasini bosing.</div>
             }
@@ -176,12 +206,14 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
   `,
   styles: [`
     .rehab-video-wrap { position: relative; aspect-ratio: 16/10; min-height: 280px; background: radial-gradient(circle at center, rgba(20,184,166,.12), #0f172a 70%); }
-    .rehab-video, .rehab-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .rehab-video, .rehab-canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: center; }
+    .rehab-video.mirrored, .rehab-canvas.mirrored { transform: scaleX(-1); }
     .rehab-canvas { pointer-events: none; }
     .rehab-badges { position: absolute; left: 1rem; right: 1rem; top: 1rem; display: flex; gap: .5rem; flex-wrap: wrap; z-index: 2; }
     .rehab-badge-blue, .rehab-badge-green, .rehab-badge-warn, .rehab-badge-bad { border-radius: 999px; padding: .45rem .75rem; font-size: .78rem; font-weight: 800; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.2); }
     .rehab-badge-blue { background: rgba(37,99,235,.22); color: #dbeafe; } .rehab-badge-green { background: rgba(16,185,129,.22); color: #d1fae5; } .rehab-badge-warn { background: rgba(245,158,11,.24); color: #fef3c7; } .rehab-badge-bad { background: rgba(239,68,68,.24); color: #fee2e2; }
     .rehab-btn-primary { border-radius: .9rem; background: linear-gradient(90deg,#0d9488,#2563eb); color: white; padding: .75rem 1rem; font-weight: 800; box-shadow: 0 12px 30px rgba(13,148,136,.18); }
+    .rehab-btn-mini { border-radius: 999px; border: 1px solid rgb(203 213 225); background: white; color: rgb(15 23 42); padding: .45rem .75rem; font-weight: 800; font-size: .78rem; }
     .rehab-btn-secondary { border-radius: .9rem; border: 1px solid rgb(203 213 225); background: white; color: rgb(15 23 42); padding: .75rem 1rem; font-weight: 700; }
     .rehab-btn-primary:disabled, .rehab-btn-secondary:disabled { opacity: .55; cursor: not-allowed; }
     .rehab-input { width: 100%; border-radius: .9rem; border: 1px solid rgb(203 213 225); padding: .8rem 1rem; outline: none; background: white; }
@@ -191,6 +223,7 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
     .rehab-metric { border: 1px solid rgb(226 232 240); border-radius: 1rem; background: rgb(248 250 252); padding: 1rem; }
     .rehab-metric p { color: rgb(100 116 139); font-size: .78rem; } .rehab-metric strong { display: block; color: rgb(15 23 42); font-size: 1.6rem; line-height: 1.15; margin-top: .2rem; }
     .rehab-chart { border: 1px solid rgb(226 232 240); border-radius: 1.25rem; background: white; padding: 1rem; } .rehab-chart h3 { font-weight: 900; }
+    .rehab-ai-card { border: 1px solid rgb(224 231 255); border-radius: 1rem; background: rgba(255,255,255,.82); padding: 1rem; } .rehab-ai-card strong { color: rgb(49 46 129); } .rehab-ai-card p { margin-top: .35rem; color: rgb(51 65 85); }
     @media (max-width: 768px) { .rehab-video-wrap { min-height: 220px; } }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -199,6 +232,7 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   private handTracker = inject(HandTrackerService);
   private poseTracker = inject(PoseTrackerService);
   private storage = inject(RehabilitationStorageService);
+  private rehabAi = inject(RehabilitationAiService);
   private supabase = inject(SupabaseService);
 
   @ViewChild('rehabVideo') rehabVideoRef?: ElementRef<HTMLVideoElement>;
@@ -215,6 +249,9 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   rehabilitationLatestSession = signal<RehabilitationSession | null>(null);
   rehabilitationPlans = signal<RehabilitationPlan[]>([]);
   rehabilitationMetrics = signal<RehabilitationLiveMetrics>(this.rehabilitationDefaultMetrics());
+  rehabilitationAiStatus = signal<'idle' | 'analyzing' | 'completed' | 'failed'>('idle');
+  rehabilitationMirrorPreview = signal(true);
+  rehabilitationFacingMode = signal<'user' | 'environment'>('user');
 
   rehabilitationSelectedPatientId = 'umumiy';
   rehabilitationSelectedExerciseId = 'arm_forward_raise';
@@ -269,13 +306,14 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
       return;
     }
     try {
-      this.rehabilitationStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      this.rehabilitationStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: this.rehabilitationFacingMode() }, audio: false });
       await Promise.all([this.poseTracker.initialize(), this.handTracker.initialize()]);
       const video = this.rehabVideoRef?.nativeElement;
       if (video) {
         video.srcObject = this.rehabilitationStream;
         await video.play().catch(() => undefined);
       }
+      this.rehabilitationMirrorPreview.set(this.rehabilitationFacingMode() === 'user');
       this.rehabilitationCameraReady.set(true);
       this.rehabilitationFeedback.set('Kamera tayyor. Tanani markazga joylashtiring va mashqni boshlang.');
       this.rehabilitationFeedbackTone.set('good');
@@ -387,8 +425,37 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
     };
     const saved = await this.storage.rehabilitationSaveSession(session);
     this.rehabilitationLatestSession.set(session);
-    this.rehabilitationFeedback.set(saved.error ? `Lokal saqlandi, bulutga yozishda xatolik: ${saved.error.message}` : 'Sessiya bemor profili va shifokor paneli uchun saqlandi.');
+    this.rehabilitationFeedback.set(saved.error ? `Lokal saqlandi, bulutga yozishda xatolik: ${saved.error.message}` : 'Sessiya bemor profili va shifokor paneli uchun saqlandi. Abdulloh AI tahlili boshlanmoqda.');
     this.rehabilitationFeedbackTone.set(saved.error ? 'warn' : 'good');
+    await this.rehabilitationRunAiAnalysis(session);
+  }
+
+
+  async rehabilitationRetryAiAnalysis() {
+    const session = this.rehabilitationLatestSession();
+    if (!session) return;
+    await this.rehabilitationRunAiAnalysis(session);
+  }
+
+  rehabilitationToggleMirror() {
+    this.rehabilitationMirrorPreview.update((value) => !value);
+    this.rehabilitationFeedback.set('Mirror rejim faqat preview va skeleton overlay uchun o‘zgartirildi; hisoblash koordinatalari saqlanadi.');
+    this.rehabilitationFeedbackTone.set('good');
+  }
+
+  async rehabilitationSetCameraFacing(mode: 'user' | 'environment') {
+    this.rehabilitationFacingMode.set(mode);
+    this.rehabilitationMirrorPreview.set(mode === 'user');
+    if (this.rehabilitationCameraReady()) {
+      this.rehabilitationStopCamera();
+      await this.rehabilitationStartCamera();
+    }
+  }
+
+  rehabilitationCheckSkeletonAlignment() {
+    const mode = this.rehabilitationFacingMode() === 'user' ? 'old kamera' : 'orqa kamera';
+    this.rehabilitationFeedback.set(`${mode}: video preview va skeleton overlay bir xil yo‘nalishda. O‘ng/chap hisoblash original landmarklarda saqlanadi.`);
+    this.rehabilitationFeedbackTone.set('good');
   }
 
   rehabilitationSavePlan() {
@@ -466,6 +533,24 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
 
   rehabilitationPrintReport() {
     if (typeof window !== 'undefined') window.print();
+  }
+
+
+  private async rehabilitationRunAiAnalysis(session: RehabilitationSession) {
+    this.rehabilitationAiStatus.set('analyzing');
+    const previousSession = this.storage.rehabilitationListSessions(session.patientId).find((item) => item.id !== session.id) ?? null;
+    const analysis = await this.rehabAi.analyzeSession(session, previousSession);
+    const updatedSession: RehabilitationSession = { ...session, aiAnalysis: analysis };
+    await this.storage.rehabilitationAttachAiAnalysis(updatedSession, analysis);
+    this.rehabilitationLatestSession.set(updatedSession);
+    this.rehabilitationAiStatus.set(analysis.analysisStatus === 'completed' ? 'completed' : 'failed');
+    if (analysis.analysisStatus === 'completed') {
+      this.rehabilitationFeedback.set('Abdulloh AI tahlili tayyor va shifokor paneli uchun saqlandi.');
+      this.rehabilitationFeedbackTone.set('good');
+    } else {
+      this.rehabilitationFeedback.set('AI tahlil vaqtincha mavjud emas, asosiy natijalar saqlandi. Keyinroq qayta urinib ko‘ring.');
+      this.rehabilitationFeedbackTone.set('warn');
+    }
   }
 
   private rehabilitationLoop = () => {

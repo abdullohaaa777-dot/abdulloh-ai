@@ -364,3 +364,39 @@ DROP POLICY IF EXISTS "rehab plans insert own" ON public.rehabilitation_plans;
 CREATE POLICY "rehab plans insert own" ON public.rehabilitation_plans FOR INSERT WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
 DROP POLICY IF EXISTS "rehab plans update own" ON public.rehabilitation_plans;
 CREATE POLICY "rehab plans update own" ON public.rehabilitation_plans FOR UPDATE USING (auth.uid() = doctor_id OR doctor_id IS NULL) WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
+
+-- Reabilitatsiya AI tahlili: AI ishlamasa ham status saqlanadi, eski jadvallar o'zgartirilmaydi.
+CREATE TABLE IF NOT EXISTS public.rehabilitation_ai_analyses (
+  id text PRIMARY KEY,
+  session_id text REFERENCES public.rehabilitation_sessions(id) ON DELETE CASCADE,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  ai_provider text NOT NULL DEFAULT 'abdulloh-ai-server',
+  analysis_status text NOT NULL DEFAULT 'pending',
+  overall_summary text NOT NULL DEFAULT '',
+  movement_quality_analysis text NOT NULL DEFAULT '',
+  joint_problem_analysis text NOT NULL DEFAULT '',
+  symmetry_analysis text NOT NULL DEFAULT '',
+  fatigue_analysis text NOT NULL DEFAULT '',
+  progress_comparison text NOT NULL DEFAULT '',
+  risk_warnings jsonb NOT NULL DEFAULT '[]'::jsonb,
+  patient_advice text NOT NULL DEFAULT '',
+  doctor_clinical_note text NOT NULL DEFAULT '',
+  next_exercise_recommendation text NOT NULL DEFAULT '',
+  safety_note text NOT NULL DEFAULT '',
+  raw_ai_response jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.rehabilitation_ai_analyses ENABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_rehab_ai_session_id ON public.rehabilitation_ai_analyses(session_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_ai_patient_id ON public.rehabilitation_ai_analyses(patient_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_ai_status ON public.rehabilitation_ai_analyses(analysis_status);
+
+DROP POLICY IF EXISTS "rehab ai analyses select own" ON public.rehabilitation_ai_analyses;
+CREATE POLICY "rehab ai analyses select own" ON public.rehabilitation_ai_analyses FOR SELECT USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab ai analyses insert own" ON public.rehabilitation_ai_analyses;
+CREATE POLICY "rehab ai analyses insert own" ON public.rehabilitation_ai_analyses FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab ai analyses update own" ON public.rehabilitation_ai_analyses;
+CREATE POLICY "rehab ai analyses update own" ON public.rehabilitation_ai_analyses FOR UPDATE USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid()))) WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
