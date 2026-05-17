@@ -265,3 +265,102 @@ ON public.silent_disease_hunter_results
 FOR UPDATE
 USING (auth.uid() = user_id OR user_id IS NULL)
 WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+
+-- Aqlli reabilitatsiya mashqlari: mavjud jadvallarga tegmaydigan alohida modul jadvallari.
+CREATE TABLE IF NOT EXISTS public.rehabilitation_sessions (
+  id text PRIMARY KEY,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz NOT NULL DEFAULT now(),
+  total_score integer NOT NULL DEFAULT 0,
+  accuracy_percent integer NOT NULL DEFAULT 0,
+  fatigue_index integer NOT NULL DEFAULT 0,
+  symmetry_index integer NOT NULL DEFAULT 0,
+  movement_quality_score integer NOT NULL DEFAULT 0,
+  clinical_summary text NOT NULL DEFAULT '',
+  patient_advice text NOT NULL DEFAULT '',
+  doctor_note text NOT NULL DEFAULT '',
+  raw_session jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehabilitation_exercises (
+  id text PRIMARY KEY,
+  session_id text REFERENCES public.rehabilitation_sessions(id) ON DELETE CASCADE,
+  exercise_name text NOT NULL,
+  exercise_type text NOT NULL,
+  target_body_part text NOT NULL,
+  repetitions_done integer NOT NULL DEFAULT 0,
+  repetitions_correct integer NOT NULL DEFAULT 0,
+  repetitions_wrong integer NOT NULL DEFAULT 0,
+  score integer NOT NULL DEFAULT 0,
+  accuracy_percent integer NOT NULL DEFAULT 0,
+  range_of_motion integer NOT NULL DEFAULT 0,
+  average_speed integer NOT NULL DEFAULT 0,
+  tremor_score integer NOT NULL DEFAULT 0,
+  error_summary jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehabilitation_joint_metrics (
+  id text PRIMARY KEY,
+  exercise_id text REFERENCES public.rehabilitation_exercises(id) ON DELETE CASCADE,
+  joint_name text NOT NULL,
+  min_angle integer NOT NULL DEFAULT 0,
+  max_angle integer NOT NULL DEFAULT 0,
+  average_angle integer NOT NULL DEFAULT 0,
+  ideal_angle integer NOT NULL DEFAULT 0,
+  deviation integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehabilitation_plans (
+  id text PRIMARY KEY,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  title text NOT NULL DEFAULT '',
+  description text NOT NULL DEFAULT '',
+  exercises jsonb NOT NULL DEFAULT '[]'::jsonb,
+  frequency text NOT NULL DEFAULT '',
+  duration_days integer NOT NULL DEFAULT 0,
+  precautions text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.rehabilitation_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehabilitation_exercises ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehabilitation_joint_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehabilitation_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_rehab_sessions_patient_id ON public.rehabilitation_sessions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_sessions_created_at ON public.rehabilitation_sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rehab_exercises_session_id ON public.rehabilitation_exercises(session_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_joint_metrics_exercise_id ON public.rehabilitation_joint_metrics(exercise_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_plans_patient_id ON public.rehabilitation_plans(patient_id);
+
+DROP POLICY IF EXISTS "rehab sessions select own" ON public.rehabilitation_sessions;
+CREATE POLICY "rehab sessions select own" ON public.rehabilitation_sessions FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL OR auth.uid() = doctor_id);
+DROP POLICY IF EXISTS "rehab sessions insert own" ON public.rehabilitation_sessions;
+CREATE POLICY "rehab sessions insert own" ON public.rehabilitation_sessions FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL OR auth.uid() = doctor_id);
+DROP POLICY IF EXISTS "rehab sessions update own" ON public.rehabilitation_sessions;
+CREATE POLICY "rehab sessions update own" ON public.rehabilitation_sessions FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL OR auth.uid() = doctor_id) WITH CHECK (auth.uid() = user_id OR user_id IS NULL OR auth.uid() = doctor_id);
+
+DROP POLICY IF EXISTS "rehab exercises select own" ON public.rehabilitation_exercises;
+CREATE POLICY "rehab exercises select own" ON public.rehabilitation_exercises FOR SELECT USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_exercises.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab exercises insert own" ON public.rehabilitation_exercises;
+CREATE POLICY "rehab exercises insert own" ON public.rehabilitation_exercises FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_exercises.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+
+DROP POLICY IF EXISTS "rehab joint metrics select own" ON public.rehabilitation_joint_metrics;
+CREATE POLICY "rehab joint metrics select own" ON public.rehabilitation_joint_metrics FOR SELECT USING (EXISTS (SELECT 1 FROM public.rehabilitation_exercises e JOIN public.rehabilitation_sessions s ON s.id = e.session_id WHERE e.id = rehabilitation_joint_metrics.exercise_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab joint metrics insert own" ON public.rehabilitation_joint_metrics;
+CREATE POLICY "rehab joint metrics insert own" ON public.rehabilitation_joint_metrics FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_exercises e JOIN public.rehabilitation_sessions s ON s.id = e.session_id WHERE e.id = rehabilitation_joint_metrics.exercise_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+
+DROP POLICY IF EXISTS "rehab plans select own" ON public.rehabilitation_plans;
+CREATE POLICY "rehab plans select own" ON public.rehabilitation_plans FOR SELECT USING (auth.uid() = doctor_id OR doctor_id IS NULL);
+DROP POLICY IF EXISTS "rehab plans insert own" ON public.rehabilitation_plans;
+CREATE POLICY "rehab plans insert own" ON public.rehabilitation_plans FOR INSERT WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
+DROP POLICY IF EXISTS "rehab plans update own" ON public.rehabilitation_plans;
+CREATE POLICY "rehab plans update own" ON public.rehabilitation_plans FOR UPDATE USING (auth.uid() = doctor_id OR doctor_id IS NULL) WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);

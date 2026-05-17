@@ -72,6 +72,11 @@ interface SdhDashboardFinalAnalysis {
             <mat-icon>radar</mat-icon>
             <span class="font-medium">Yashirin kasalliklarni erta aniqlash</span>
           </a>
+          <a routerLink="/reabilitatsiya-nazorati" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+             class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
+            <mat-icon>accessibility_new</mat-icon>
+            <span class="font-medium">Reabilitatsiya nazorati</span>
+          </a>
           <div class="ml-2 mr-1 rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-cyan-800">
             <p class="font-bold">Silent Disease Hunter — kengaytirilgan test natijalari</p>
             <p>{{ sdhAdvancedResultCount() }} ta lokal patient natijasi saqlangan</p>

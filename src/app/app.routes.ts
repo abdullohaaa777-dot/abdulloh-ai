@@ -16,6 +16,7 @@ import { NeuroMotorComponent } from './components/neuromotor/neuromotor';
 import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
 import { HeartMicroImpulseComponent } from './components/heart-micro-impulse/heart-micro-impulse';
 import { SilentDiseaseHunterComponent } from './components/silent-disease-hunter/silent-disease-hunter';
+import { RehabilitationMonitoringComponent } from './components/rehabilitation-monitoring/rehabilitation-monitoring';
 
 export const routes: Routes = [
   { path: 'auth', component: AuthComponent },
@@ -30,6 +31,7 @@ export const routes: Routes = [
       { path: 'nafas-ovoz', component: RespiratoryVoiceComponent },
       { path: 'yurak-mikro-impuls', component: HeartMicroImpulseComponent },
       { path: 'silent-disease-hunter', component: SilentDiseaseHunterComponent },
+      { path: 'reabilitatsiya-nazorati', component: RehabilitationMonitoringComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },
