@@ -400,3 +400,115 @@ DROP POLICY IF EXISTS "rehab ai analyses insert own" ON public.rehabilitation_ai
 CREATE POLICY "rehab ai analyses insert own" ON public.rehabilitation_ai_analyses FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
 DROP POLICY IF EXISTS "rehab ai analyses update own" ON public.rehabilitation_ai_analyses;
 CREATE POLICY "rehab ai analyses update own" ON public.rehabilitation_ai_analyses FOR UPDATE USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid()))) WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehabilitation_ai_analyses.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+
+-- Smart Rehab Digital Twin kengaytmalari: mavjud reabilitatsiya jadvallarini buzmasdan alohida saqlanadi.
+CREATE TABLE IF NOT EXISTS public.smart_rehab_digital_twins (
+  id text PRIMARY KEY,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  baseline_profile jsonb NOT NULL DEFAULT '{}'::jsonb,
+  current_profile jsonb NOT NULL DEFAULT '{}'::jsonb,
+  movement_signature text NOT NULL DEFAULT '',
+  weak_joints jsonb NOT NULL DEFAULT '[]'::jsonb,
+  common_errors jsonb NOT NULL DEFAULT '[]'::jsonb,
+  compensation_patterns jsonb NOT NULL DEFAULT '[]'::jsonb,
+  fatigue_pattern text NOT NULL DEFAULT '',
+  pain_pattern text NOT NULL DEFAULT '',
+  recovery_stage text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehab_adaptive_protocols (
+  id text PRIMARY KEY,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  current_level integer NOT NULL DEFAULT 1,
+  next_level integer NOT NULL DEFAULT 1,
+  recommendation_type text NOT NULL DEFAULT 'maintain',
+  reason text NOT NULL DEFAULT '',
+  exercise_adjustments jsonb NOT NULL DEFAULT '[]'::jsonb,
+  safety_limitations jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehab_compensation_metrics (
+  id text PRIMARY KEY,
+  session_id text REFERENCES public.rehabilitation_sessions(id) ON DELETE CASCADE,
+  patient_id text,
+  exercise_id text,
+  compensation_index integer NOT NULL DEFAULT 0,
+  compensation_type text NOT NULL DEFAULT '',
+  affected_body_part text NOT NULL DEFAULT '',
+  severity text NOT NULL DEFAULT 'low',
+  correction_advice text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehab_safe_progression_scores (
+  id text PRIMARY KEY,
+  session_id text REFERENCES public.rehabilitation_sessions(id) ON DELETE CASCADE,
+  patient_id text,
+  score integer NOT NULL DEFAULT 0,
+  pain_score integer NOT NULL DEFAULT 0,
+  fatigue_score integer NOT NULL DEFAULT 0,
+  risk_level text NOT NULL DEFAULT 'caution',
+  recommendation text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehab_recovery_trajectories (
+  id text PRIMARY KEY,
+  patient_id text,
+  doctor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  period_days integer NOT NULL DEFAULT 7,
+  progress_summary text NOT NULL DEFAULT '',
+  slow_recovery_areas jsonb NOT NULL DEFAULT '[]'::jsonb,
+  improved_areas jsonb NOT NULL DEFAULT '[]'::jsonb,
+  predicted_next_status text NOT NULL DEFAULT '',
+  doctor_recommendation text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.rehab_neurogame_results (
+  id text PRIMARY KEY,
+  patient_id text,
+  session_id text REFERENCES public.rehabilitation_sessions(id) ON DELETE CASCADE,
+  game_name text NOT NULL DEFAULT '',
+  target_body_part text NOT NULL DEFAULT '',
+  score integer NOT NULL DEFAULT 0,
+  accuracy integer NOT NULL DEFAULT 0,
+  reaction_time numeric NOT NULL DEFAULT 0,
+  movement_quality integer NOT NULL DEFAULT 0,
+  compensation_index integer NOT NULL DEFAULT 0,
+  fatigue_index integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.smart_rehab_digital_twins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehab_adaptive_protocols ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehab_compensation_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehab_safe_progression_scores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehab_recovery_trajectories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rehab_neurogame_results ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_smart_rehab_twins_patient_id ON public.smart_rehab_digital_twins(patient_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_adaptive_protocols_patient_id ON public.rehab_adaptive_protocols(patient_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_comp_metrics_session_id ON public.rehab_compensation_metrics(session_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_safe_scores_session_id ON public.rehab_safe_progression_scores(session_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_trajectories_patient_id ON public.rehab_recovery_trajectories(patient_id);
+CREATE INDEX IF NOT EXISTS idx_rehab_neurogame_session_id ON public.rehab_neurogame_results(session_id);
+
+DROP POLICY IF EXISTS "smart rehab twins own" ON public.smart_rehab_digital_twins;
+CREATE POLICY "smart rehab twins own" ON public.smart_rehab_digital_twins FOR ALL USING (auth.uid() = doctor_id OR doctor_id IS NULL) WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
+DROP POLICY IF EXISTS "rehab adaptive protocols own" ON public.rehab_adaptive_protocols;
+CREATE POLICY "rehab adaptive protocols own" ON public.rehab_adaptive_protocols FOR ALL USING (auth.uid() = doctor_id OR doctor_id IS NULL) WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
+DROP POLICY IF EXISTS "rehab compensation own" ON public.rehab_compensation_metrics;
+CREATE POLICY "rehab compensation own" ON public.rehab_compensation_metrics FOR ALL USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_compensation_metrics.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid()))) WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_compensation_metrics.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab safe scores own" ON public.rehab_safe_progression_scores;
+CREATE POLICY "rehab safe scores own" ON public.rehab_safe_progression_scores FOR ALL USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_safe_progression_scores.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid()))) WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_safe_progression_scores.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));
+DROP POLICY IF EXISTS "rehab trajectories own" ON public.rehab_recovery_trajectories;
+CREATE POLICY "rehab trajectories own" ON public.rehab_recovery_trajectories FOR ALL USING (auth.uid() = doctor_id OR doctor_id IS NULL) WITH CHECK (auth.uid() = doctor_id OR doctor_id IS NULL);
+DROP POLICY IF EXISTS "rehab neurogame own" ON public.rehab_neurogame_results;
+CREATE POLICY "rehab neurogame own" ON public.rehab_neurogame_results FOR ALL USING (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_neurogame_results.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid()))) WITH CHECK (EXISTS (SELECT 1 FROM public.rehabilitation_sessions s WHERE s.id = rehab_neurogame_results.session_id AND (s.user_id = auth.uid() OR s.user_id IS NULL OR s.doctor_id = auth.uid())));

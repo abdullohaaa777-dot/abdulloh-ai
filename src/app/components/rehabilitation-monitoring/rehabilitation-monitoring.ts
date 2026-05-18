@@ -13,6 +13,8 @@ import {
 } from '../../services/rehabilitation-storage';
 import { RehabilitationAiService } from '../../services/rehabilitation-ai';
 import { SupabaseService } from '../../services/supabase';
+import { NeuroGameRehabComponent } from '../neurogame-rehab/neurogame-rehab';
+import { RehabNeuroGameResult, RehabPainFatigueCheck, SmartRehabDigitalTwinService, SmartRehabInsight } from '../../services/smart-rehab-digital-twin';
 
 interface RehabilitationPatientOption {
   id: string;
@@ -47,7 +49,7 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
 @Component({
   selector: 'app-rehabilitation-monitoring',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatIconModule, NeuroGameRehabComponent],
   template: `
     <div class="rehab-shell min-h-full rounded-3xl overflow-hidden border border-slate-200 bg-slate-50 text-slate-900 shadow-sm">
       <section class="rehab-hero relative p-6 md:p-8 overflow-hidden text-white">
@@ -56,11 +58,11 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
           <div>
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 text-sm backdrop-blur-sm">
               <mat-icon class="!text-[18px]">accessibility_new</mat-icon>
-              <span>Aqlli reabilitatsiya mashqlarini nazorat qilish moduli</span>
+              <span>Abdulloh AI Smart Rehab Digital Twin</span>
             </div>
-            <h1 class="mt-5 text-4xl md:text-5xl font-black tracking-tight">Reabilitatsiya nazorati</h1>
-            <p class="mt-4 text-teal-50/95 max-w-3xl text-lg">Kamera orqali skelet tracking, qo‘l va butun tana harakatlari, real-time feedback, 100 ballik baholash, shifokor paneli va progress monitoring.</p>
-            <p class="mt-4 rounded-2xl border border-amber-200/30 bg-amber-300/10 p-4 text-sm text-amber-50">Bu natijalar reabilitatsiya jarayonini kuzatishga yordam beradi. Og‘riq, bosh aylanishi, nafas qisishi yoki holsizlik bo‘lsa mashqni to‘xtating va shifokorga murojaat qiling.</p>
+            <h1 class="mt-5 text-4xl md:text-5xl font-black tracking-tight">Aqlli reabilitatsion raqamli egizak</h1>
+            <p class="mt-4 text-teal-50/95 max-w-3xl text-lg">Kamera orqali skeleton va hand tracking, kompensator indeks, xavfsiz rivojlanish balli, tiklanish trayektoriyasi, NeuroGame Rehab va shifokor uchun klinik AI xulosa.</p>
+            <p class="mt-4 rounded-2xl border border-amber-200/30 bg-amber-300/10 p-4 text-sm text-amber-50">Bu natijalar reabilitatsiya jarayonini kuzatishga yordam beradi. Og‘riq, bosh aylanishi, nafas qisishi yoki uvishish yoki kuchli holsizlik bo‘lsa mashqni to‘xtating va shifokorga murojaat qiling.</p>
           </div>
           <div class="rounded-3xl border border-white/15 bg-white/10 backdrop-blur-md p-5 shadow-2xl">
             <p class="text-sm text-teal-100">Bugungi reabilitatsiya balli</p>
@@ -135,6 +137,21 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
                 <p class="text-sm text-slate-600 mt-1">{{ rehabilitationSelectedExercise()?.instructionUz }}</p>
                 <div class="mt-3 flex flex-wrap gap-2 text-xs"><span class="rehab-pill">{{ rehabilitationSelectedExercise()?.type }}</span><span class="rehab-pill">{{ rehabilitationSelectedExercise()?.targetBodyPart }}</span><span class="rehab-pill">{{ rehabilitationSelectedExercise()?.repetitionsTarget }} takror</span></div>
               </div>
+              <div class="mt-4 rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                <h3 class="font-black text-amber-950">Pain & fatigue monitoring</h3>
+                <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <label class="rehab-label">Oldin og‘riq 0–10 <input class="rehab-input mt-1" type="number" min="0" max="10" [(ngModel)]="preExerciseCheck.painScore"></label>
+                  <label class="rehab-label">Keyin og‘riq 0–10 <input class="rehab-input mt-1" type="number" min="0" max="10" [(ngModel)]="postExerciseCheck.painScore"></label>
+                  <label class="rehab-label">Oldin charchoq 0–10 <input class="rehab-input mt-1" type="number" min="0" max="10" [(ngModel)]="preExerciseCheck.fatigueScore"></label>
+                  <label class="rehab-label">Keyin charchoq 0–10 <input class="rehab-input mt-1" type="number" min="0" max="10" [(ngModel)]="postExerciseCheck.fatigueScore"></label>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-700">
+                  <label><input type="checkbox" [(ngModel)]="postExerciseCheck.dizziness"> Bosh aylanishi</label>
+                  <label><input type="checkbox" [(ngModel)]="postExerciseCheck.shortnessOfBreath"> Nafas qisishi</label>
+                  <label><input type="checkbox" [(ngModel)]="postExerciseCheck.numbnessOrWeakness"> Uvishish/kuchsizlik</label>
+                  <label><input type="checkbox" [(ngModel)]="postExerciseCheck.readyToContinue"> Davom ettirishga tayyor</label>
+                </div>
+              </div>
               <div class="mt-4 flex flex-wrap gap-3">
                 <button class="rehab-btn-primary" (click)="rehabilitationStartExercise()" [disabled]="rehabilitationExerciseRunning()">Mashqni boshlash</button>
                 <button class="rehab-btn-secondary" (click)="rehabilitationFinishExercise()" [disabled]="!rehabilitationExerciseRunning()">Mashqni yakunlash</button>
@@ -151,6 +168,38 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
             </section>
           </div>
         </div>
+
+        <section class="grid xl:grid-cols-[1fr_1fr] gap-5">
+          <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-black uppercase tracking-wider text-teal-600">Patient panel</p><h2 class="text-xl font-black">Mening reabilitatsiya profilim</h2></div><span class="rehab-pill">Smart Rehab Digital Twin</span></div>
+            @if (smartRehabInsight(); as insight) {
+              <div class="mt-4 grid sm:grid-cols-3 gap-3"><div class="rehab-metric"><p>Xavfsiz rivojlanish balli</p><strong>{{ insight.safeProgression.score }}%</strong></div><div class="rehab-metric"><p>Kompensator indeks</p><strong>{{ insight.compensation.compensationIndex }}%</strong></div><div class="rehab-metric"><p>NeuroGame</p><strong>{{ insight.neuroGame.score }}%</strong></div></div>
+              <div class="mt-4 rounded-2xl bg-teal-50 border border-teal-100 p-4 text-sm"><strong>Tiklanish yo‘lim:</strong> {{ insight.recoveryTrajectories[0].progressSummary }} {{ insight.adaptiveProtocol.patientMessage }}</div>
+              <div class="mt-3 rounded-2xl bg-rose-50 border border-rose-100 p-4 text-sm"><strong>Mashqdagi yashirin xatolar:</strong> {{ insight.compensation.compensationType }} — {{ insight.compensation.correctionAdvice }}</div>
+              <div class="mt-4 grid grid-cols-2 gap-3 text-sm"><div class="rehab-chart"><h3>Digital Twin radar</h3><svg viewBox="0 0 120 120" class="w-full h-44"><polygon points="60,8 108,42 90,104 30,104 12,42" fill="none" stroke="#cbd5e1"/><polygon [attr.points]="rehabilitationRadarPoints(insight)" fill="rgba(20,184,166,.28)" stroke="#0d9488" stroke-width="3"/></svg></div><div class="rehab-chart"><h3>Safe score grafigi</h3><div class="mt-3 h-3 rounded-full bg-slate-100"><div class="h-full rounded-full bg-gradient-to-r from-rose-400 via-amber-400 to-emerald-500" [style.width.%]="insight.safeProgression.score"></div></div><p class="mt-3 text-sm text-slate-600">{{ insight.safeProgression.recommendation }}</p></div></div>
+            } @else {
+              <div class="mt-4 rounded-2xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Sessiya saqlangandan so‘ng individual raqamli egizak, xavfsiz rivojlanish balli va tiklanish trayektoriyasi yaratiladi.</div>
+            }
+          </div>
+
+          <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-wider text-blue-600">Doctor / physiotherapist panel</p>
+            <h2 class="text-xl font-black">Raqamli reabilitatsiya egizagi</h2>
+            @if (smartRehabInsight(); as insight) {
+              <div class="mt-4 grid gap-3 text-sm">
+                <div class="rehab-ai-card"><strong>Kompensator harakatlar tahlili</strong><p>{{ insight.compensation.clinicalNote }} Ta’sirlangan soha: {{ insight.compensation.affectedBodyPart }}.</p></div>
+                <div class="rehab-ai-card"><strong>Adaptiv protokol tavsiyasi</strong><p>{{ insight.adaptiveProtocol.doctorMessage }}</p></div>
+                <div class="rehab-ai-card"><strong>Tiklanish trayektoriyasi</strong><p>{{ insight.recoveryTrajectories[1].progressSummary }} {{ insight.recoveryTrajectories[1].doctorRecommendation }}</p></div>
+                <div class="rehab-ai-card"><strong>Reja o‘zgartirish tavsiyasi</strong><p>{{ insight.adaptiveProtocol.exerciseAdjustments.join(', ') }}</p></div>
+              </div>
+              <div class="mt-4 grid lg:grid-cols-2 gap-3"><div class="rehab-chart"><h3>Recovery Trajectory</h3><svg viewBox="0 0 220 100" class="w-full h-32"><polyline [attr.points]="rehabilitationLinePoints(insight.recoveryTrajectories[0].progressValues)" fill="none" stroke="#2563eb" stroke-width="4"/></svg></div><div class="rehab-chart"><h3>Joint heatmap</h3><div class="grid grid-cols-4 gap-2 mt-3">@for (joint of insight.digitalTwin.weakJoints; track joint) {<span class="rounded-xl bg-orange-100 text-orange-800 px-3 py-2 text-xs font-black text-center">{{ joint }}</span>}</div></div></div>
+            } @else {
+              <p class="mt-4 text-sm text-slate-500">Shifokor klinik egizak, kompensatsiya, safe progression, NeuroGame va adaptive protocol natijalarini sessiya saqlangandan keyin ko‘radi.</p>
+            }
+          </div>
+        </section>
+
+        <app-neurogame-rehab [patientId]="rehabilitationSelectedPatientId === 'umumiy' ? null : rehabilitationSelectedPatientId" [sessionId]="rehabilitationLatestSession()?.id ?? null" [movementQuality]="rehabilitationMetrics().movementQuality" [compensationIndex]="smartRehabInsight()?.compensation?.compensationIndex ?? 25" [fatigueIndex]="rehabilitationMetrics().fatigue" (gameCompleted)="rehabilitationOnNeuroGame($event)"></app-neurogame-rehab>
 
         <section class="grid xl:grid-cols-[.95fr_1.05fr] gap-5">
           <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -182,13 +231,13 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
                 <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-xl font-black text-indigo-950">Abdulloh AI tahlili</h3><p class="text-sm text-slate-500">Server-side tahlil: API kalit frontendda ko‘rinmaydi. Status: {{ session.aiAnalysis?.analysisStatus || rehabilitationAiStatus() }}</p></div>@if (rehabilitationAiStatus() === 'analyzing') {<span class="rehab-pill">Tahlil qilinmoqda...</span>}</div>
                 @if (session.aiAnalysis; as ai) {
                   <div class="grid lg:grid-cols-2 gap-3 mt-4 text-sm">
-                    <div class="rehab-ai-card"><strong>Umumiy xulosa</strong><p>{{ ai.overallSummary }}</p></div>
-                    <div class="rehab-ai-card"><strong>Harakat sifati</strong><p>{{ ai.movementQualityAnalysis }}</p></div>
+                    <div class="rehab-ai-card"><strong>Umumiy xulosa</strong><p>{{ ai.overallRehabStatus || ai.overallSummary }}</p></div>
+                    <div class="rehab-ai-card"><strong>Raqamli egizak</strong><p>{{ ai.digitalTwinSummary || ai.overallSummary }}</p></div><div class="rehab-ai-card"><strong>Harakat sifati</strong><p>{{ ai.movementQualityAnalysis }}</p></div>
                     <div class="rehab-ai-card"><strong>Bo‘g‘im muammolari</strong><p>{{ ai.jointProblemAnalysis }}</p></div>
-                    <div class="rehab-ai-card"><strong>Simmetriya va charchash</strong><p>{{ ai.symmetryAnalysis }} {{ ai.fatigueAnalysis }}</p></div>
-                    <div class="rehab-ai-card"><strong>Progress solishtiruvi</strong><p>{{ ai.progressComparison }}</p></div>
-                    <div class="rehab-ai-card"><strong>Keyingi mashq tavsiyasi</strong><p>{{ ai.nextExerciseRecommendation }}</p></div>
-                    <div class="rehab-ai-card"><strong>Bemor uchun</strong><p>{{ ai.patientAdvice }}</p></div>
+                    <div class="rehab-ai-card"><strong>Kompensatsiya</strong><p>{{ ai.compensationAnalysis || ai.symmetryAnalysis }}</p></div><div class="rehab-ai-card"><strong>Safe progression</strong><p>{{ ai.safeProgressionAnalysis || ai.fatigueAnalysis }}</p></div><div class="rehab-ai-card"><strong>Og‘riq/charchash</strong><p>{{ ai.painFatigueAnalysis || ai.fatigueAnalysis }}</p></div>
+                    <div class="rehab-ai-card"><strong>Tiklanish trayektoriyasi</strong><p>{{ ai.recoveryTrajectoryAnalysis || ai.progressComparison }}</p></div><div class="rehab-ai-card"><strong>Adaptive protocol</strong><p>{{ ai.adaptiveProtocolRecommendation || ai.nextExerciseRecommendation }}</p></div><div class="rehab-ai-card"><strong>NeuroGame</strong><p>{{ ai.neurogamePerformanceSummary || 'Mashqli o‘yin natijalari klinik ko‘rsatkich sifatida saqlandi.' }}</p></div>
+                    <div class="rehab-ai-card"><strong>Keyingi sessiya rejasi</strong><p>{{ ai.nextSessionPlan || ai.nextExerciseRecommendation }}</p></div>
+                    <div class="rehab-ai-card"><strong>Bemor uchun</strong><p>{{ ai.patientSimpleAdvice || ai.patientAdvice }}</p></div>
                     <div class="rehab-ai-card"><strong>Shifokor klinik note</strong><p>{{ ai.doctorClinicalNote }}</p></div>
                   </div>
                   <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm"><strong>Xavfsizlik:</strong> {{ ai.safetyNote }} @for (warning of ai.riskWarnings; track warning) { <span class="block mt-1">• {{ warning }}</span> }</div>
@@ -233,6 +282,7 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   private poseTracker = inject(PoseTrackerService);
   private storage = inject(RehabilitationStorageService);
   private rehabAi = inject(RehabilitationAiService);
+  private smartRehab = inject(SmartRehabDigitalTwinService);
   private supabase = inject(SupabaseService);
 
   @ViewChild('rehabVideo') rehabVideoRef?: ElementRef<HTMLVideoElement>;
@@ -250,6 +300,10 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   rehabilitationPlans = signal<RehabilitationPlan[]>([]);
   rehabilitationMetrics = signal<RehabilitationLiveMetrics>(this.rehabilitationDefaultMetrics());
   rehabilitationAiStatus = signal<'idle' | 'analyzing' | 'completed' | 'failed'>('idle');
+  smartRehabInsight = signal<SmartRehabInsight | null>(null);
+  latestNeuroGameResult = signal<RehabNeuroGameResult | null>(null);
+  preExerciseCheck: RehabPainFatigueCheck = this.smartRehab.defaultCheck('pre');
+  postExerciseCheck: RehabPainFatigueCheck = this.smartRehab.defaultCheck('post');
   rehabilitationMirrorPreview = signal(true);
   rehabilitationFacingMode = signal<'user' | 'environment'>('user');
 
@@ -423,7 +477,12 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
       chartData: this.rehabilitationBuildCharts(results, totalScore, fatigue, symmetry),
       createdAt: new Date().toISOString()
     };
+    const history = this.storage.rehabilitationListSessions(session.patientId).filter((item) => item.id !== session.id);
+    const smartInsight = this.smartRehab.buildInsight(session, history, { pre: this.rehabilitationNormalizeCheck(this.preExerciseCheck, 'pre'), post: this.rehabilitationNormalizeCheck(this.postExerciseCheck, 'post') }, this.latestNeuroGameResult());
+    session.smartRehab = smartInsight;
+    await this.storage.rehabilitationSaveSmartRehabInsight(smartInsight);
     const saved = await this.storage.rehabilitationSaveSession(session);
+    this.smartRehabInsight.set(smartInsight);
     this.rehabilitationLatestSession.set(session);
     this.rehabilitationFeedback.set(saved.error ? `Lokal saqlandi, bulutga yozishda xatolik: ${saved.error.message}` : 'Sessiya bemor profili va shifokor paneli uchun saqlandi. Abdulloh AI tahlili boshlanmoqda.');
     this.rehabilitationFeedbackTone.set(saved.error ? 'warn' : 'good');
@@ -456,6 +515,25 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
     const mode = this.rehabilitationFacingMode() === 'user' ? 'old kamera' : 'orqa kamera';
     this.rehabilitationFeedback.set(`${mode}: video preview va skeleton overlay bir xil yo‘nalishda. O‘ng/chap hisoblash original landmarklarda saqlanadi.`);
     this.rehabilitationFeedbackTone.set('good');
+  }
+
+
+  rehabilitationOnNeuroGame(result: RehabNeuroGameResult) {
+    this.latestNeuroGameResult.set(result);
+    this.rehabilitationFeedback.set('NeuroGame Rehab natijasi klinik ko‘rsatkich sifatida tayyorlandi. Sessiyani saqlanganda raqamli egizakka qo‘shiladi.');
+    this.rehabilitationFeedbackTone.set('good');
+  }
+
+  rehabilitationRadarPoints(insight: SmartRehabInsight): string {
+    const values = [insight.digitalTwin.currentProfile['movementQuality'], insight.digitalTwin.currentProfile['symmetry'], 100 - insight.compensation.compensationIndex, insight.safeProgression.score, 100 - Number(insight.digitalTwin.currentProfile['fatigue'] ?? 0)].map((value) => this.rehabilitationClamp(Number(value), 0, 100));
+    const anchors = [{ x: 60, y: 8 }, { x: 108, y: 42 }, { x: 90, y: 104 }, { x: 30, y: 104 }, { x: 12, y: 42 }];
+    return anchors.map((anchor, index) => `${60 + (anchor.x - 60) * values[index] / 100},${60 + (anchor.y - 60) * values[index] / 100}`).join(' ');
+  }
+
+  rehabilitationLinePoints(values: number[]): string {
+    const safeValues = values.length ? values : [45, 55, 62];
+    const maxIndex = Math.max(1, safeValues.length - 1);
+    return safeValues.map((value, index) => `${10 + index * (200 / maxIndex)},${92 - this.rehabilitationClamp(value, 0, 100) * .82}`).join(' ');
   }
 
   rehabilitationSavePlan() {
@@ -535,6 +613,11 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
     if (typeof window !== 'undefined') window.print();
   }
 
+
+
+  private rehabilitationNormalizeCheck(check: RehabPainFatigueCheck, phase: 'pre' | 'post'): RehabPainFatigueCheck {
+    return { ...check, phase, painScore: this.rehabilitationClamp(Number(check.painScore || 0), 0, 10), fatigueScore: this.rehabilitationClamp(Number(check.fatigueScore || 0), 0, 10), readyToContinue: Boolean(check.readyToContinue) };
+  }
 
   private async rehabilitationRunAiAnalysis(session: RehabilitationSession) {
     this.rehabilitationAiStatus.set('analyzing');

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from './supabase';
+import type { SmartRehabInsight } from './smart-rehab-digital-twin';
 
 export type RehabilitationExerciseType = 'standard' | 'fine-motor' | 'coordination' | 'balance';
 export type RehabilitationAiAnalysisStatus = 'pending' | 'completed' | 'failed';
@@ -33,15 +34,25 @@ export interface RehabilitationAiAnalysis {
   aiProvider: string;
   analysisStatus: RehabilitationAiAnalysisStatus;
   overallSummary: string;
+  overallRehabStatus?: string;
+  digitalTwinSummary?: string;
   movementQualityAnalysis: string;
   jointProblemAnalysis: string;
+  compensationAnalysis?: string;
+  safeProgressionAnalysis?: string;
+  painFatigueAnalysis?: string;
+  recoveryTrajectoryAnalysis?: string;
+  adaptiveProtocolRecommendation?: string;
+  neurogamePerformanceSummary?: string;
   symmetryAnalysis: string;
   fatigueAnalysis: string;
   progressComparison: string;
   riskWarnings: string[];
   patientAdvice: string;
+  patientSimpleAdvice?: string;
   doctorClinicalNote: string;
   nextExerciseRecommendation: string;
+  nextSessionPlan?: string;
   safetyNote: string;
   rawAiResponse: unknown;
   createdAt: string;
@@ -90,6 +101,7 @@ export interface RehabilitationSession {
   patientAdvice: string;
   doctorNote: string;
   aiAnalysis?: RehabilitationAiAnalysis | null;
+  smartRehab?: SmartRehabInsight | null;
   exercises: RehabilitationExerciseResult[];
   chartData: {
     progress: number[];
@@ -121,6 +133,7 @@ export interface RehabilitationPlan {
 export class RehabilitationStorageService {
   private readonly sessionsKey = 'abdullohAI_rehabilitationSessions';
   private readonly plansKey = 'abdullohAI_rehabilitationPlans';
+  private readonly smartRehabKey = 'abdullohAI_smartRehabInsights';
   private supabase = inject(SupabaseService);
 
   rehabilitationListSessions(patientId?: string | null): RehabilitationSession[] {
@@ -209,6 +222,42 @@ export class RehabilitationStorageService {
     }
 
     return { error: null };
+  }
+
+
+  async rehabilitationSaveSmartRehabInsight(insight: SmartRehabInsight): Promise<{ error: { message: string } | null }> {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(this.smartRehabKey);
+        const list = raw ? JSON.parse(raw) : [];
+        const insights = Array.isArray(list) ? list as SmartRehabInsight[] : [];
+        const filtered = insights.filter((item) => item.safeProgression.sessionId !== insight.safeProgression.sessionId);
+        filtered.unshift(insight);
+        localStorage.setItem(this.smartRehabKey, JSON.stringify(filtered.slice(0, 200)));
+      } catch (error) {
+        console.error('Smart rehab insight local save error:', error);
+      }
+    }
+
+    if (!this.supabase.isConfigured()) return { error: null };
+
+    try {
+      const twin = insight.digitalTwin;
+      await this.supabase.client.from('smart_rehab_digital_twins').upsert({ id: twin.id, patient_id: twin.patientId, doctor_id: twin.doctorId, baseline_profile: twin.baselineProfile, current_profile: twin.currentProfile, movement_signature: twin.movementSignature, weak_joints: twin.weakJoints, common_errors: twin.commonErrors, compensation_patterns: twin.compensationPatterns, fatigue_pattern: twin.fatiguePattern, pain_pattern: twin.painPattern, recovery_stage: twin.recoveryStage, updated_at: twin.updatedAt });
+      const protocol = insight.adaptiveProtocol;
+      await this.supabase.client.from('rehab_adaptive_protocols').upsert({ id: protocol.id, patient_id: protocol.patientId, doctor_id: protocol.doctorId, current_level: protocol.currentLevel, next_level: protocol.nextLevel, recommendation_type: protocol.recommendationType, reason: protocol.reason, exercise_adjustments: protocol.exerciseAdjustments, safety_limitations: protocol.safetyLimitations, updated_at: protocol.updatedAt });
+      const compensation = insight.compensation;
+      await this.supabase.client.from('rehab_compensation_metrics').upsert({ id: compensation.id, session_id: compensation.sessionId, patient_id: compensation.patientId, exercise_id: compensation.exerciseId, compensation_index: compensation.compensationIndex, compensation_type: compensation.compensationType, affected_body_part: compensation.affectedBodyPart, severity: compensation.severity, correction_advice: compensation.correctionAdvice });
+      const safe = insight.safeProgression;
+      await this.supabase.client.from('rehab_safe_progression_scores').upsert({ id: safe.id, session_id: safe.sessionId, patient_id: safe.patientId, score: safe.score, pain_score: safe.painScore, fatigue_score: safe.fatigueScore, risk_level: safe.riskLevel, recommendation: safe.recommendation });
+      const trajectories = insight.recoveryTrajectories.map((item) => ({ id: item.id, patient_id: item.patientId, doctor_id: item.doctorId, period_days: item.periodDays, progress_summary: item.progressSummary, slow_recovery_areas: item.slowRecoveryAreas, improved_areas: item.improvedAreas, predicted_next_status: item.predictedNextStatus, doctor_recommendation: item.doctorRecommendation }));
+      if (trajectories.length) await this.supabase.client.from('rehab_recovery_trajectories').upsert(trajectories);
+      const game = insight.neuroGame;
+      await this.supabase.client.from('rehab_neurogame_results').upsert({ id: game.id, patient_id: game.patientId, session_id: game.sessionId, game_name: game.gameName, target_body_part: game.targetBodyPart, score: game.score, accuracy: game.accuracy, reaction_time: game.reactionTime, movement_quality: game.movementQuality, compensation_index: game.compensationIndex, fatigue_index: game.fatigueIndex });
+      return { error: null };
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Smart Rehab Digital Twin ma’lumotlarini saqlashda xatolik' } };
+    }
   }
 
   rehabilitationListPlans(patientId?: string | null): RehabilitationPlan[] {

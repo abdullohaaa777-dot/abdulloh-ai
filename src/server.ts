@@ -28,7 +28,7 @@ app.use(express.json({ limit: '1mb' }));
  */
 
 
-const REHABILITATION_SAFETY_NOTE = 'Bu tahlil reabilitatsiya jarayonini kuzatishga yordam beruvchi yordamchi AI xulosadir. Og‘riq, bosh aylanishi, nafas qisishi, yurak urishining kuchayishi yoki holsizlik bo‘lsa, mashqni to‘xtating va shifokorga murojaat qiling.';
+const REHABILITATION_SAFETY_NOTE = 'Bu tahlil reabilitatsiya jarayonini kuzatishga yordam beruvchi yordamchi AI xulosadir. Og‘riq, bosh aylanishi, nafas qisishi, yurak urishining kuchayishi, uvishish yoki kuchli holsizlik bo‘lsa, mashqni to‘xtating va shifokorga murojaat qiling.';
 
 function extractJsonObject(text: string): Record<string, unknown> | null {
   const trimmed = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
@@ -55,17 +55,21 @@ function fallbackRehabilitationAnalysis(session: Record<string, unknown>, status
   const quality = Number(session['movementQualityScore'] ?? 0);
   const symmetry = Number(session['symmetryIndex'] ?? 0);
   const fatigue = Number(session['fatigueIndex'] ?? 0);
+  const smartRehab = session['smartRehab'] as Record<string, unknown> | undefined;
   return {
-    overall_summary: statusMessage,
+    overall_rehab_status: statusMessage,
+    digital_twin_summary: smartRehab ? 'Raqamli egizak profili, kompensatsiya va adaptive protocol lokal hisob-kitoblar asosida shakllandi.' : 'Raqamli egizak uchun asosiy sessiya natijalari saqlandi.',
     movement_quality_analysis: `Harakat sifati ${quality}%: silliqlik, amplituda, motor nazorat va trayektoriya og‘ishi asosida kuzatildi.`,
-    joint_problem_analysis: 'Bo‘g‘im burchaklari jadvali va amplituda cheklovlari shifokor/fizioterapevt tomonidan klinik kontekstda ko‘rib chiqiladi.',
-    symmetry_analysis: `Chap-o‘ng simmetriya indeksi ${symmetry}%. Simmetriya pasaysa kompensator gavda qiyshayishi tekshiriladi.`,
-    fatigue_analysis: `Nevromotor charchash indeksi ${fatigue}%. Charchash ortsa takrorlar sonini kamaytirish yoki dam olish oralig‘ini oshirish mumkin.`,
-    progress_comparison: `Joriy umumiy ball ${totalScore}%. Keyingi sessiyalar bilan dinamik solishtirish davom ettiriladi.`,
-    risk_warnings: fatigue > 65 ? ['Charchash yuqori: og‘riq, bosh aylanishi yoki holsizlik bo‘lsa mashq to‘xtatiladi.'] : ['Xavfli belgi aniq ko‘rinmadi, lekin klinik simptomlar bo‘lsa mashq to‘xtatiladi.'],
-    patient_advice: String(session['patientAdvice'] ?? 'Mashqni sekin, nazoratli va xavfsiz amplitudada bajaring.'),
+    compensation_analysis: `Chap-o‘ng simmetriya indeksi ${symmetry}%. Kompensator harakatlar klinik kontekstda kuzatiladi.`,
+    safe_progression_analysis: `Joriy umumiy ball ${totalScore}%. Xavfsiz rivojlanish uchun og‘riq, charchash va simmetriya birga baholandi.`,
+    pain_fatigue_analysis: `Nevromotor charchash indeksi ${fatigue}%. Og‘riq yoki uvishish kuchaysa mashq to‘xtatiladi.`,
+    recovery_trajectory_analysis: '7/14/30 kunlik tiklanish trayektoriyasi sessiya tarixi bilan solishtiriladi.',
+    adaptive_protocol_recommendation: totalScore > 75 ? 'Mashq darajasini ehtiyotkorlik bilan kuchaytirish mumkin.' : 'Mashq darajasini saqlash yoki yengillashtirish tavsiya etiladi.',
+    neurogame_performance_summary: 'NeuroGame Rehab natijalari aniqlik, reaksiya va kompensatsiya ko‘rsatkichlari sifatida talqin qilinadi.',
+    patient_simple_advice: String(session['patientAdvice'] ?? 'Mashqni sekin, nazoratli va xavfsiz amplitudada bajaring.'),
     doctor_clinical_note: String(session['doctorNote'] ?? 'Sessiya natijalari klinik yordamchi monitoring sifatida talqin qilinadi.'),
-    next_exercise_recommendation: totalScore > 75 ? 'Shu mashqni nazoratli ritmda davom ettiring; keyingi bosqichda amplituda asta-sekin oshirilishi mumkin.' : 'Keyingi sessiyada kamroq takror, sekinroq ritm va zarur bo‘lsa amplituda cheklovi tavsiya etiladi.',
+    risk_warnings: fatigue > 65 ? ['Charchash yuqori: og‘riq, bosh aylanishi, uvishish yoki holsizlik bo‘lsa mashq to‘xtatiladi.'] : ['Xavfli belgi aniq ko‘rinmadi, lekin klinik simptomlar bo‘lsa mashq to‘xtatiladi.'],
+    next_session_plan: totalScore > 75 ? 'Shu mashqni nazoratli ritmda davom ettiring; keyingi bosqichda amplituda asta-sekin oshirilishi mumkin.' : 'Keyingi sessiyada kamroq takror, sekinroq ritm va zarur bo‘lsa amplituda cheklovi tavsiya etiladi.',
     safety_note: REHABILITATION_SAFETY_NOTE
   };
 }
@@ -93,21 +97,24 @@ Muhim:
 - Shifokor uchun professional klinik izoh bering.
 - Og‘riq, nafas qisishi, bosh aylanishi, kuchli holsizlik bo‘lsa, mashqni to‘xtatish va shifokorga murojaat qilishni eslatib o‘ting.
 
-Tahlil qilinadigan ma’lumotlar:
-${JSON.stringify({ rehabilitation_session_data: session, previous_session: previousSession }, null, 2)}
+Tahlil qilinadigan ma’lumotlar (digital twin, compensation index, safe progression score, pain/fatigue checks, recovery trajectory, adaptive protocol va NeuroGame natijalari bilan):
+${JSON.stringify({ rehabilitation_session_data: session, smart_rehab_digital_twin: session['smartRehab'] ?? null, previous_session: previousSession }, null, 2)}
 
 Javobni faqat quyidagi JSON formatda qaytaring:
 {
-  "overall_summary": "",
+  "overall_rehab_status": "",
+  "digital_twin_summary": "",
   "movement_quality_analysis": "",
-  "joint_problem_analysis": "",
-  "symmetry_analysis": "",
-  "fatigue_analysis": "",
-  "progress_comparison": "",
-  "risk_warnings": [],
-  "patient_advice": "",
+  "compensation_analysis": "",
+  "safe_progression_analysis": "",
+  "pain_fatigue_analysis": "",
+  "recovery_trajectory_analysis": "",
+  "adaptive_protocol_recommendation": "",
+  "neurogame_performance_summary": "",
+  "patient_simple_advice": "",
   "doctor_clinical_note": "",
-  "next_exercise_recommendation": "",
+  "risk_warnings": [],
+  "next_session_plan": "",
   "safety_note": "${REHABILITATION_SAFETY_NOTE}"
 }`;
 
