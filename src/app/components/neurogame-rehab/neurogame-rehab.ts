@@ -8,19 +8,19 @@ import { RehabNeuroGameResult } from '../../services/smart-rehab-digital-twin';
   standalone: true,
   imports: [CommonModule, MatIconModule],
   template: `
-    <section class="rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5 shadow-sm">
+    <section class="rounded-3xl border border-[#D4AF37]/30 bg-[#0B0C0A]/90 p-5 text-[#F8F1D0] shadow-[0_0_35px_rgba(212,175,55,0.10)] backdrop-blur-xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div class="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700"><mat-icon class="!text-[16px]">sports_esports</mat-icon> NeuroGame Rehab</div>
-          <h3 class="mt-2 text-xl font-black text-slate-950">Mashqli o‘yinlar</h3>
-          <p class="text-sm text-slate-500">Klinik mashqqa bog‘langan o‘yin: qo‘lni ko‘tarib yulduzlarni yig‘ish, aniqlik va kompensatsiyani kuzatish.</p>
+          <div class="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3 py-1 text-xs font-black text-[#F2D675]"><mat-icon class="!text-[16px]">sports_esports</mat-icon> NeuroGame Rehab</div>
+          <h3 class="mt-2 text-xl font-black text-[#F8F1D0]">Mashqli o‘yinlar</h3>
+          <p class="text-sm text-[#C9C2A4]">Klinik mashqqa bog‘langan o‘yin: qo‘lni ko‘tarib yulduzlarni yig‘ish, aniqlik va kompensatsiyani kuzatish.</p>
         </div>
-        <button class="rounded-xl bg-violet-600 px-4 py-2 text-sm font-black text-white shadow-lg shadow-violet-200" (click)="runGame()">Mini testni bajarish</button>
+        <button class="rounded-xl border border-[#D4AF37]/45 bg-[#11100B]/95 px-4 py-2 text-sm font-black text-[#F2D675] shadow-[0_0_24px_rgba(212,175,55,0.14)] transition-all hover:bg-[#1A160C] hover:border-[#D4AF37]/70 hover:shadow-[0_0_35px_rgba(212,175,55,0.22)] active:scale-[0.98]" (click)="runGame()">Mini testni bajarish</button>
       </div>
       <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_.9fr]">
-        <div class="relative h-48 overflow-hidden rounded-3xl border border-violet-100 bg-slate-950">
+        <div class="relative h-48 overflow-hidden rounded-3xl border border-[#D4AF37]/30 bg-[#030403] shadow-inner">
           @for (star of stars; track star.x) { <span class="absolute text-2xl drop-shadow-lg" [style.left.%]="star.x" [style.top.%]="star.y">⭐</span> }
-          <div class="absolute bottom-4 left-4 right-4 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-300" [style.width.%]="latest?.accuracy ?? 62"></div></div>
+          <div class="absolute bottom-4 left-4 right-4 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-[#D4AF37] to-[#8FD66B]" [style.width.%]="latest?.accuracy ?? 62"></div></div>
           <div class="absolute left-4 top-4 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-white">Qo‘l trayektoriyasi + aniqlik testi</div>
         </div>
         <div class="grid grid-cols-2 gap-3 text-sm">
@@ -33,9 +33,10 @@ import { RehabNeuroGameResult } from '../../services/smart-rehab-digital-twin';
     </section>
   `,
   styles: [`
-    .rehab-game-metric { border: 1px solid rgb(237 233 254); border-radius: 1rem; background: rgba(255,255,255,.86); padding: 1rem; }
-    .rehab-game-metric span { display: block; color: rgb(100 116 139); font-size: .78rem; font-weight: 800; }
-    .rehab-game-metric strong { display: block; margin-top: .25rem; color: rgb(76 29 149); font-size: 1.5rem; font-weight: 900; }
+    .rehab-game-metric { border: 1px solid rgba(212,175,55,.32); border-radius: 1rem; background: rgba(18,16,10,.96); padding: 1rem; box-shadow: 0 0 24px rgba(212,175,55,.08); transition: .2s; }
+    .rehab-game-metric:hover { border-color: rgba(242,214,117,.58); box-shadow: 0 0 32px rgba(212,175,55,.16); }
+    .rehab-game-metric span { display: block; color: #C9C2A4; font-size: .78rem; font-weight: 800; }
+    .rehab-game-metric strong { display: block; margin-top: .25rem; color: #F2D675; font-size: 1.5rem; font-weight: 900; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

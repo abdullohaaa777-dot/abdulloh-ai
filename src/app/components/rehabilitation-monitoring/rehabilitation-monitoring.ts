@@ -285,18 +285,30 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
     .rehab-badges { position: absolute; left: 1rem; right: 1rem; top: 1rem; display: flex; gap: .5rem; flex-wrap: wrap; z-index: 2; }
     .rehab-badge-blue, .rehab-badge-green, .rehab-badge-warn, .rehab-badge-bad { border-radius: 999px; padding: .45rem .75rem; font-size: .78rem; font-weight: 800; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.2); }
     .rehab-badge-blue { background: rgba(37,99,235,.22); color: #dbeafe; } .rehab-badge-green { background: rgba(16,185,129,.22); color: #d1fae5; } .rehab-badge-warn { background: rgba(245,158,11,.24); color: #fef3c7; } .rehab-badge-bad { background: rgba(239,68,68,.24); color: #fee2e2; }
-    .rehab-btn-primary { border-radius: .9rem; background: linear-gradient(90deg,#0d9488,#2563eb); color: white; padding: .75rem 1rem; font-weight: 800; box-shadow: 0 12px 30px rgba(13,148,136,.18); }
-    .rehab-btn-mini { border-radius: 999px; border: 1px solid rgb(203 213 225); background: white; color: rgb(15 23 42); padding: .45rem .75rem; font-weight: 800; font-size: .78rem; }
-    .rehab-btn-secondary { border-radius: .9rem; border: 1px solid rgb(203 213 225); background: white; color: rgb(15 23 42); padding: .75rem 1rem; font-weight: 700; }
+    .rehab-btn-primary { border-radius: .9rem; background: linear-gradient(135deg,#D4AF37,#F2D675); color: #120f05; padding: .75rem 1rem; font-weight: 900; border:1px solid rgba(242,214,117,.55); box-shadow: 0 0 30px rgba(212,175,55,.18); }
+    .rehab-btn-mini { border-radius: 999px; border: 1px solid rgba(212,175,55,.38); background: rgba(17,16,11,.95); color: #F2D675; padding: .45rem .75rem; font-weight: 800; font-size: .78rem; }
+    .rehab-btn-secondary { border-radius: .9rem; border: 1px solid rgba(212,175,55,.38); background: rgba(17,16,11,.95); color: #F8F1D0; padding: .75rem 1rem; font-weight: 700; }
     .rehab-btn-primary:disabled, .rehab-btn-secondary:disabled { opacity: .55; cursor: not-allowed; }
-    .rehab-input { width: 100%; border-radius: .9rem; border: 1px solid rgb(203 213 225); padding: .8rem 1rem; outline: none; background: white; }
-    .rehab-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13,148,136,.12); }
-    .rehab-label { display: block; color: rgb(71 85 105); font-size: .78rem; font-weight: 800; margin-bottom: .35rem; }
-    .rehab-pill { border-radius: 999px; background: rgb(240 253 250); color: rgb(15 118 110); padding: .35rem .6rem; font-weight: 800; }
-    .rehab-metric { border: 1px solid rgb(226 232 240); border-radius: 1rem; background: rgb(248 250 252); padding: 1rem; }
-    .rehab-metric p { color: rgb(100 116 139); font-size: .78rem; } .rehab-metric strong { display: block; color: rgb(15 23 42); font-size: 1.6rem; line-height: 1.15; margin-top: .2rem; }
-    .rehab-chart { border: 1px solid rgb(226 232 240); border-radius: 1.25rem; background: white; padding: 1rem; } .rehab-chart h3 { font-weight: 900; }
-    .rehab-ai-card { border: 1px solid rgb(224 231 255); border-radius: 1rem; background: rgba(255,255,255,.82); padding: 1rem; } .rehab-ai-card strong { color: rgb(49 46 129); } .rehab-ai-card p { margin-top: .35rem; color: rgb(51 65 85); }
+    .rehab-input { width: 100%; border-radius: .9rem; border: 1px solid rgba(212,175,55,.34); padding: .8rem 1rem; outline: none; background: rgba(10,11,9,.92); color:#F8F1D0; }
+    .rehab-input:focus { border-color: rgba(242,214,117,.70); box-shadow: 0 0 0 4px rgba(212,175,55,.14); }
+    .rehab-label { display: block; color: #C9C2A4; font-size: .78rem; font-weight: 800; margin-bottom: .35rem; }
+    .rehab-pill { border-radius: 999px; border:1px solid rgba(212,175,55,.28); background: rgba(212,175,55,.10); color: #F2D675; padding: .35rem .6rem; font-weight: 800; }
+    .rehab-metric { border: 1px solid rgba(212,175,55,.30); border-radius: 1rem; background: rgba(18,16,10,.96); padding: 1rem; box-shadow:0 0 24px rgba(212,175,55,.08); }
+    .rehab-metric p { color: #C9C2A4; font-size: .78rem; } .rehab-metric strong { display: block; color: #F2D675; font-size: 1.6rem; line-height: 1.15; margin-top: .2rem; }
+    .rehab-chart { border: 1px solid rgba(212,175,55,.30); border-radius: 1.25rem; background: rgba(12,13,10,.92); padding: 1rem; box-shadow:0 0 28px rgba(212,175,55,.08); color:#F8F1D0; } .rehab-chart h3 { font-weight: 900; }
+    .rehab-ai-card { border: 1px solid rgba(212,175,55,.30); border-radius: 1rem; background: rgba(15,14,10,.94); padding: 1rem; box-shadow:0 0 24px rgba(212,175,55,.07); } .rehab-ai-card strong { color: #F2D675; } .rehab-ai-card p { margin-top: .35rem; color: #C9C2A4; }
+
+    :host .bg-white, :host .bg-slate-50, :host .bg-slate-100, :host .bg-amber-50, :host .bg-emerald-50, :host .bg-blue-50, :host .bg-indigo-50, :host .bg-rose-50, :host .bg-teal-50, :host .bg-red-100 { background-color: rgba(12,13,10,.92) !important; }
+    :host [class~="bg-slate-50/70"], :host [class~="bg-amber-50/70"] { background-color: rgba(12,13,10,.82) !important; }
+    :host .border-slate-200, :host .border-slate-300, :host .border-amber-100, :host .border-amber-200, :host .border-emerald-100, :host .border-blue-100, :host .border-indigo-100, :host .border-indigo-200, :host .border-rose-100, :host .border-teal-100 { border-color: rgba(212,175,55,.30) !important; }
+    :host .text-slate-900, :host .text-indigo-950 { color: #F8F1D0 !important; }
+    :host .text-slate-700, :host .text-slate-600, :host .text-slate-500 { color: #C9C2A4 !important; }
+    :host .text-emerald-600, :host .text-emerald-700, :host .text-blue-600, :host .text-indigo-600, :host .text-rose-600, :host .text-cyan-700, :host .text-teal-700, :host .text-amber-700, :host .text-red-700 { color: #D4AF37 !important; }
+    :host .bg-emerald-100, :host .bg-amber-100, :host .bg-rose-100 { background-color: rgba(18,16,10,.96) !important; }
+    :host .from-indigo-50 { --tw-gradient-from: rgba(12,13,10,.94) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(12,13,10,0) var(--tw-gradient-to-position) !important; }
+    :host .via-white { --tw-gradient-to: rgba(12,13,10,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), rgba(15,14,10,.92) var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+    :host .to-cyan-50 { --tw-gradient-to: rgba(5,7,6,.96) var(--tw-gradient-to-position) !important; }
+    :host .text-emerald-800, :host .text-amber-800, :host .text-rose-800 { color: #F2D675 !important; }
     @media (max-width: 768px) { .rehab-video-wrap { min-height: 220px; } }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -7,10 +7,10 @@ import { MicroMotorPrecisionResult } from '../../services/rehab-quality-engine';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <section class="rounded-3xl border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-5 shadow-sm">
+    <section class="rounded-3xl border border-[#D4AF37]/30 bg-[#0B0C0A]/90 p-5 text-[#F8F1D0] shadow-[0_0_35px_rgba(212,175,55,0.10)] backdrop-blur-xl">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <div><p class="text-xs font-black uppercase tracking-wider text-cyan-700">Micro-Motor Precision Test</p><h3 class="text-xl font-black">Mayda motorika aniqligi testi</h3><p class="text-sm text-slate-500">Bosh barmoq–barmoqlar ketma-ketligi, kaft ochish-yopish va nuqtaga yetish aniqligi.</p></div>
-        <button class="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-black text-white" (click)="runTest()">Testni hisoblash</button>
+        <div><p class="text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37]">Micro-Motor Precision Test</p><h3 class="text-xl font-black text-[#F8F1D0]">Mayda motorika aniqligi testi</h3><p class="text-sm text-[#C9C2A4]">Bosh barmoq–barmoqlar ketma-ketligi, kaft ochish-yopish va nuqtaga yetish aniqligi.</p></div>
+        <button class="rounded-xl border border-[#D4AF37]/45 bg-[#11100B]/95 px-4 py-2 text-sm font-black text-[#F2D675] shadow-[0_0_24px_rgba(212,175,55,0.14)] transition-all hover:bg-[#1A160C] hover:border-[#D4AF37]/70 hover:shadow-[0_0_35px_rgba(212,175,55,0.22)] active:scale-[0.98]" (click)="runTest()">Testni hisoblash</button>
       </div>
       <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="micro-card"><span>Aniqlik</span><strong>{{ latest?.accuracyPercent ?? 68 }}%</strong></div>
@@ -18,10 +18,10 @@ import { MicroMotorPrecisionResult } from '../../services/rehab-quality-engine';
         <div class="micro-card"><span>Tremor</span><strong>{{ latest?.tremorScore ?? tremor }}%</strong></div>
         <div class="micro-card"><span>Reaksiya</span><strong>{{ latest?.reactionTime ?? 1.4 }}s</strong></div>
       </div>
-      @if (latest) { <p class="mt-3 rounded-2xl bg-white/80 p-3 text-sm text-slate-700">{{ latest.patientAdvice }}</p> }
+      @if (latest) { <p class="mt-3 rounded-2xl border border-[#D4AF37]/25 bg-[#11100B]/90 p-3 text-sm text-[#C9C2A4]">{{ latest.patientAdvice }}</p> }
     </section>
   `,
-  styles: [`.micro-card{border:1px solid rgb(207 250 254);border-radius:1rem;background:white;padding:1rem}.micro-card span{display:block;color:#64748b;font-size:.78rem;font-weight:800}.micro-card strong{display:block;margin-top:.25rem;color:#0e7490;font-size:1.45rem;font-weight:900}`],
+  styles: [`.micro-card{border:1px solid rgba(212,175,55,.32);border-radius:1rem;background:rgba(18,16,10,.96);padding:1rem;box-shadow:0 0 24px rgba(212,175,55,.08);transition:.2s}.micro-card:hover{border-color:rgba(242,214,117,.58);box-shadow:0 0 32px rgba(212,175,55,.16)}.micro-card span{display:block;color:#C9C2A4;font-size:.78rem;font-weight:800}.micro-card strong{display:block;margin-top:.25rem;color:#F2D675;font-size:1.45rem;font-weight:900}`],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MicroMotorPrecisionComponent {
