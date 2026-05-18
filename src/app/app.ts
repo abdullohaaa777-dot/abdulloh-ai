@@ -23,8 +23,8 @@ export class App {
       const url = this.router.url;
 
       if (!user) {
-        if (!url.includes('/auth')) {
-          this.router.navigate(['/auth']);
+        if (!url.includes('/auth') && !url.includes('/home')) {
+          this.router.navigate(['/home']);
         }
       } else {
         if (url.includes('/auth')) {

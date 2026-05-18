@@ -17,8 +17,10 @@ import { RespiratoryVoiceComponent } from './components/respiratory-voice/respir
 import { HeartMicroImpulseComponent } from './components/heart-micro-impulse/heart-micro-impulse';
 import { SilentDiseaseHunterComponent } from './components/silent-disease-hunter/silent-disease-hunter';
 import { RehabilitationMonitoringComponent } from './components/rehabilitation-monitoring/rehabilitation-monitoring';
+import { LandingComponent } from './components/landing/landing';
 
 export const routes: Routes = [
+  { path: 'home', component: LandingComponent },
   { path: 'auth', component: AuthComponent },
   {
     path: '',
