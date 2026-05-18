@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SupabaseService } from '../../services/supabase';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,12 +9,18 @@ import { Router, RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, MatIconModule, RouterModule],
   template: `
-    <div class="flex h-screen bg-medical-bg overflow-hidden">
+    <div class="flex h-screen bg-medical-bg overflow-hidden relative">
+      @if (sidebarOpen()) {
+        <button type="button" class="fixed inset-0 bg-slate-950/45 backdrop-blur-[1px] z-40 md:hidden" aria-label="Menyuni yopish" (click)="closeSidebar()"></button>
+      }
       <!-- Sidebar -->
-      <aside class="w-64 bg-white/95 backdrop-blur-xl border-r border-medical-border/80 p-6 flex flex-col shadow-[0_16px_35px_-30px_rgba(15,23,42,1)] z-10 relative overflow-hidden">
+      <aside class="fixed md:relative inset-y-0 left-0 w-[86vw] max-w-80 md:w-64 md:max-w-none h-[100dvh] md:h-auto bg-white/95 backdrop-blur-xl border-r border-medical-border/80 p-6 flex flex-col shadow-[0_16px_35px_-30px_rgba(15,23,42,1)] z-50 md:z-10 overflow-hidden transform transition-transform duration-200 ease-out md:translate-x-0"
+             [ngClass]="sidebarOpen() ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+             aria-label="Asosiy menyu">
         <div class="absolute -top-16 -left-8 w-44 h-44 rounded-full bg-indigo-100/60 blur-2xl pointer-events-none"></div>
         <div class="absolute bottom-8 -right-8 w-36 h-36 rounded-full bg-sky-100/60 blur-2xl pointer-events-none"></div>
-        <div class="flex items-center gap-3 mb-10">
+        <div class="flex items-center justify-between gap-3 mb-10">
+          <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-gradient-to-br from-medical-primary to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-medical-primary/40">
             <mat-icon class="text-white">health_and_safety</mat-icon>
           </div>
@@ -22,72 +28,76 @@ import { Router, RouterModule } from '@angular/router';
             <span class="text-lg font-bold text-medical-text leading-tight">Abdulloh AI</span>
             <span class="text-[10px] text-medical-primary font-semibold uppercase tracking-wider">Medical System</span>
           </div>
+          </div>
+          <button type="button" class="md:hidden w-11 h-11 rounded-xl border border-medical-border bg-white text-medical-text-muted flex items-center justify-center hover:bg-slate-50 transition-all" aria-label="Menyuni yopish" (click)="closeSidebar()">
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto pr-2 custom-scrollbar">
-          <a routerLink="/dashboard" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20" 
+          <a (click)="closeSidebar()" routerLink="/dashboard" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20" 
              [routerLinkActiveOptions]="{exact: true}"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>dashboard</mat-icon>
             <span class="font-medium">Dashboard</span>
           </a>
-          <a routerLink="/digital-twin" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/digital-twin" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>person_pin</mat-icon>
             <span class="font-medium">Digital Twin</span>
           </a>
-          <a routerLink="/dermatology-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/dermatology-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>health_and_safety</mat-icon>
             <span class="font-medium">Dermatologik AI</span>
           </a>
-          <a routerLink="/respiratory-voice" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/respiratory-voice" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>air</mat-icon>
             <span class="font-medium">Nafas va Ovoz Tahlili</span>
           </a>
-          <a routerLink="/organ-bioelectric-index" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/organ-bioelectric-index" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>hub</mat-icon>
             <span class="font-medium">Organlararo Bioelektr Indeks</span>
           </a>
-          <a routerLink="/homeostasis-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/homeostasis-ai" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>analytics</mat-icon>
             <span class="font-medium">Homeostaz AI</span>
           </a>
-          <a routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/monitoring" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>monitor_heart</mat-icon>
             <span class="font-medium">Monitoring</span>
           </a>
-          <a routerLink="/cystic-fibrosis" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/cystic-fibrosis" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>medical_services</mat-icon>
             <span class="font-medium">Mukovitsidoz</span>
           </a>
-          <a routerLink="/adherence" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/adherence" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>fact_check</mat-icon>
             <span class="font-medium">Adherence</span>
           </a>
-          <a routerLink="/simulator" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/simulator" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>model_training</mat-icon>
             <span class="font-medium">Simulator</span>
           </a>
-          <a routerLink="/telemedicine" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/telemedicine" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>chat</mat-icon>
             <span class="font-medium">Telemeditsina</span>
           </a>
-          <a routerLink="/analytics" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/analytics" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>analytics</mat-icon>
             <span class="font-medium">Analytics</span>
           </a>
           <div class="pt-4 pb-2 px-3 text-[10px] font-bold text-medical-text-muted uppercase tracking-widest">Amallar</div>
-          <a routerLink="/new-case" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
+          <a (click)="closeSidebar()" routerLink="/new-case" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">
             <mat-icon>add_circle</mat-icon>
             <span class="font-medium">Yangi holat</span>
@@ -112,7 +122,13 @@ import { Router, RouterModule } from '@angular/router';
       </aside>
 
       <!-- Main Content -->
-      <main class="flex-1 overflow-y-auto p-8 bg-medical-bg/40 relative">
+      <main class="flex-1 w-full min-w-0 overflow-y-auto p-4 md:p-8 bg-medical-bg/40 relative">
+        <div class="md:hidden sticky top-0 z-30 -mx-4 mb-4 px-4 py-3 bg-medical-bg/90 backdrop-blur-xl border-b border-medical-border/70">
+          <button type="button" class="min-w-11 h-11 px-4 rounded-xl bg-white border border-medical-border text-medical-text flex items-center gap-2 font-bold shadow-sm" aria-label="Menyuni ochish" [attr.aria-expanded]="sidebarOpen()" (click)="openSidebar()">
+            <mat-icon>menu</mat-icon>
+            Menu
+          </button>
+        </div>
         <div class="hud-ring w-96 h-96 -top-44 -right-20 opacity-60 pointer-events-none"></div>
         <div class="hud-ring hud-ring-slow w-72 h-72 top-1/3 -left-24 opacity-40 pointer-events-none"></div>
         <div class="floating-medical-orb w-16 h-16 right-[14%] top-24 opacity-65 pointer-events-none"></div>
@@ -135,6 +151,21 @@ export class DashboardComponent implements OnInit {
   private router = inject(Router);
 
   userEmail = signal<string | undefined>(undefined);
+  sidebarOpen = signal(false);
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    this.closeSidebar();
+  }
+
+  openSidebar() {
+    this.sidebarOpen.set(true);
+  }
+
+  closeSidebar() {
+    this.sidebarOpen.set(false);
+  }
+
 
   ngOnInit() {
     this.userEmail.set(this.supabase.user()?.email);
