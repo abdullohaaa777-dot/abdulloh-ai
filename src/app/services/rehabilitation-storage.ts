@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from './supabase';
 import type { SmartRehabInsight } from './smart-rehab-digital-twin';
+import type { RehabQualityInsight } from './rehab-quality-engine';
 
 export type RehabilitationExerciseType = 'standard' | 'fine-motor' | 'coordination' | 'balance';
 export type RehabilitationAiAnalysisStatus = 'pending' | 'completed' | 'failed';
@@ -102,6 +103,7 @@ export interface RehabilitationSession {
   doctorNote: string;
   aiAnalysis?: RehabilitationAiAnalysis | null;
   smartRehab?: SmartRehabInsight | null;
+  rehabQuality?: RehabQualityInsight | null;
   exercises: RehabilitationExerciseResult[];
   chartData: {
     progress: number[];
@@ -134,6 +136,7 @@ export class RehabilitationStorageService {
   private readonly sessionsKey = 'abdullohAI_rehabilitationSessions';
   private readonly plansKey = 'abdullohAI_rehabilitationPlans';
   private readonly smartRehabKey = 'abdullohAI_smartRehabInsights';
+  private readonly rehabQualityKey = 'abdullohAI_rehabQualityInsights';
   private supabase = inject(SupabaseService);
 
   rehabilitationListSessions(patientId?: string | null): RehabilitationSession[] {
@@ -257,6 +260,45 @@ export class RehabilitationStorageService {
       return { error: null };
     } catch (error) {
       return { error: { message: error instanceof Error ? error.message : 'Smart Rehab Digital Twin ma’lumotlarini saqlashda xatolik' } };
+    }
+  }
+
+
+  async rehabilitationSaveQualityInsight(session: RehabilitationSession, insight: RehabQualityInsight): Promise<{ error: { message: string } | null }> {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(this.rehabQualityKey);
+        const list = raw ? JSON.parse(raw) : [];
+        const insights = Array.isArray(list) ? list as RehabQualityInsight[] : [];
+        const filtered = insights.filter((item) => item.doctorPriority.latestSessionId !== session.id);
+        filtered.unshift(insight);
+        localStorage.setItem(this.rehabQualityKey, JSON.stringify(filtered.slice(0, 200)));
+      } catch (error) {
+        console.error('Rehab quality insight local save error:', error);
+      }
+    }
+    if (!this.supabase.isConfigured()) return { error: null };
+    try {
+      const exerciseId = session.exercises[0]?.id ?? null;
+      const mq = insight.movementQuality;
+      await this.supabase.client.from('rehab_movement_quality_scores').upsert({ id: `mq-${session.id}`, session_id: session.id, patient_id: session.patientId, exercise_id: exerciseId, total_score: mq.totalScore, joint_angle_score: mq.jointAngleScore, range_of_motion_score: mq.rangeOfMotionScore, smoothness_score: mq.smoothnessScore, symmetry_score: mq.symmetryScore, compensation_score: mq.compensationScore, fatigue_score: mq.fatigueScore, speed_score: mq.speedScore, summary: mq.doctorSummary });
+      const cw = insight.compensationWarning;
+      await this.supabase.client.from('rehab_compensation_warnings').upsert({ id: `cw-${session.id}`, session_id: session.id, patient_id: session.patientId, exercise_id: exerciseId, compensation_percent: cw.compensationPercent, compensation_type: cw.compensationType, affected_body_part: cw.affectedBodyPart, severity: cw.severity, correction_advice: cw.correctionAdvice });
+      const fd = insight.fatigueDrop;
+      await this.supabase.client.from('rehab_fatigue_drops').upsert({ id: `fd-${session.id}`, session_id: session.id, patient_id: session.patientId, exercise_id: exerciseId, drop_detected: fd.dropDetected, drop_start_repetition: fd.dropStartRepetition, fatigue_index: fd.fatigueDropIndex, repetition_scores: fd.repetitionScores, summary: fd.doctorClinicalNote });
+      const painChecks = [session.smartRehab?.patientChecks.pre, session.smartRehab?.patientChecks.post].filter(Boolean).map((check) => ({ id: `pain-${session.id}-${check!.phase}`, session_id: session.id, patient_id: session.patientId, check_type: check!.phase, pain_score: check!.painScore, fatigue_score: check!.fatigueScore, dizziness: check!.dizziness, shortness_of_breath: check!.shortnessOfBreath, numbness_or_weakness: check!.numbnessOrWeakness, ready_to_continue: check!.readyToContinue, notes: '' }));
+      if (painChecks.length) await this.supabase.client.from('rehab_pain_checks').upsert(painChecks);
+      await this.supabase.client.from('rehab_safe_progressions').upsert({ id: `sp-${session.id}`, session_id: session.id, patient_id: session.patientId, recommendation: insight.safeProgressionRecommendation, reason: mq.doctorSummary, risk_level: insight.doctorPriority.priorityLevel, score: mq.totalScore });
+      const micro = insight.microMotor;
+      await this.supabase.client.from('rehab_micro_motor_tests').upsert({ id: micro.id, session_id: session.id, patient_id: session.patientId, test_name: micro.testName, accuracy_percent: micro.accuracyPercent, reaction_time: micro.reactionTime, tremor_score: micro.tremorScore, coordination_score: micro.coordinationScore, error_summary: micro.errorSummary });
+      await this.supabase.client.from('rehab_heatmaps').upsert({ id: `heatmap-${session.id}`, session_id: session.id, patient_id: session.patientId, heatmap_data: insight.heatmap, weak_areas: insight.heatmap.filter((item) => item.status === 'risk'), improved_areas: insight.heatmap.filter((item) => item.status === 'good'), risk_areas: insight.heatmap.filter((item) => item.status === 'risk') });
+      const report = insight.weeklyReport;
+      await this.supabase.client.from('rehab_weekly_reports').upsert({ id: report.id, patient_id: report.patientId, doctor_id: report.doctorId, week_start: report.weekStart, week_end: report.weekEnd, progress_summary: report.progressSummary, improved_exercises: report.improvedExercises, worsened_exercises: report.worsenedExercises, weak_joints: report.weakJoints, pain_trend: report.painTrend, fatigue_trend: report.fatigueTrend, compensation_trend: report.compensationTrend, symmetry_trend: report.symmetryTrend, patient_advice: report.patientAdvice, doctor_note: report.doctorNote });
+      const priority = insight.doctorPriority;
+      await this.supabase.client.from('rehab_doctor_priorities').upsert({ id: priority.id, patient_id: priority.patientId, doctor_id: priority.doctorId, priority_level: priority.priorityLevel, reasons: priority.reasons, latest_session_id: priority.latestSessionId, status: priority.status, updated_at: priority.updatedAt });
+      return { error: null };
+    } catch (error) {
+      return { error: { message: error instanceof Error ? error.message : 'Rehab Quality Engine ma’lumotlarini saqlashda xatolik' } };
     }
   }
 

@@ -14,7 +14,9 @@ import {
 import { RehabilitationAiService } from '../../services/rehabilitation-ai';
 import { SupabaseService } from '../../services/supabase';
 import { NeuroGameRehabComponent } from '../neurogame-rehab/neurogame-rehab';
+import { MicroMotorPrecisionComponent } from '../micro-motor-precision/micro-motor-precision';
 import { RehabNeuroGameResult, RehabPainFatigueCheck, SmartRehabDigitalTwinService, SmartRehabInsight } from '../../services/smart-rehab-digital-twin';
+import { MicroMotorPrecisionResult, RehabQualityEngineService, RehabQualityInsight } from '../../services/rehab-quality-engine';
 
 interface RehabilitationPatientOption {
   id: string;
@@ -49,7 +51,7 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
 @Component({
   selector: 'app-rehabilitation-monitoring',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, NeuroGameRehabComponent],
+  imports: [CommonModule, FormsModule, MatIconModule, NeuroGameRehabComponent, MicroMotorPrecisionComponent],
   template: `
     <div class="rehab-shell min-h-full rounded-3xl overflow-hidden border border-slate-200 bg-slate-50 text-slate-900 shadow-sm">
       <section class="rehab-hero relative p-6 md:p-8 overflow-hidden text-white">
@@ -58,10 +60,10 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
           <div>
             <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 text-sm backdrop-blur-sm">
               <mat-icon class="!text-[18px]">accessibility_new</mat-icon>
-              <span>Abdulloh AI Smart Rehab Digital Twin</span>
+              <span>Abdulloh AI Rehab Quality Engine</span>
             </div>
-            <h1 class="mt-5 text-4xl md:text-5xl font-black tracking-tight">Aqlli reabilitatsion raqamli egizak</h1>
-            <p class="mt-4 text-teal-50/95 max-w-3xl text-lg">Kamera orqali skeleton va hand tracking, kompensator indeks, xavfsiz rivojlanish balli, tiklanish trayektoriyasi, NeuroGame Rehab va shifokor uchun klinik AI xulosa.</p>
+            <h1 class="mt-5 text-4xl md:text-5xl font-black tracking-tight">Aqlli reabilitatsiya sifati dvigateli</h1>
+            <p class="mt-4 text-teal-50/95 max-w-3xl text-lg">Kamera, skeleton va hand tracking saqlangan holda Ghost Skeleton Coach, Movement Quality Score, Fatigue Drop, Heatmap, Micro-Motor test va Doctor Priority tahlili.</p>
             <p class="mt-4 rounded-2xl border border-amber-200/30 bg-amber-300/10 p-4 text-sm text-amber-50">Bu natijalar reabilitatsiya jarayonini kuzatishga yordam beradi. Og‘riq, bosh aylanishi, nafas qisishi yoki uvishish yoki kuchli holsizlik bo‘lsa mashqni to‘xtating va shifokorga murojaat qiling.</p>
           </div>
           <div class="rounded-3xl border border-white/15 bg-white/10 backdrop-blur-md p-5 shadow-2xl">
@@ -199,6 +201,28 @@ const REHAB_HAND_CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
           </div>
         </section>
 
+        <section class="grid xl:grid-cols-[1fr_1fr] gap-5">
+          <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-black uppercase tracking-wider text-emerald-600">Patient panel</p><h2 class="text-xl font-black">Harakat sifati balli</h2></div><span class="rehab-pill">Ghost Skeleton Coach</span></div>
+            @if (rehabQualityInsight(); as quality) {
+              <div class="mt-4 grid sm:grid-cols-3 gap-3"><div class="rehab-metric"><p>Movement Quality</p><strong>{{ quality.movementQuality.totalScore }}/100</strong></div><div class="rehab-metric"><p>Fatigue Drop</p><strong>{{ quality.fatigueDrop.fatigueDropIndex }}%</strong></div><div class="rehab-metric"><p>Priority</p><strong>{{ quality.doctorPriority.priorityLevel }}</strong></div></div>
+              <div class="mt-4 rounded-2xl bg-emerald-50 border border-emerald-100 p-4 text-sm"><strong>Ideal harakat bilan solishtirish:</strong> {{ quality.ghostSkeleton.feedback }}</div>
+              <div class="mt-3 rounded-2xl bg-amber-50 border border-amber-100 p-4 text-sm"><strong>Charchash belgisi:</strong> {{ quality.fatigueDrop.patientWarning }} Xavfsiz rivojlanish tavsiyasi: {{ quality.safeProgressionRecommendation }}.</div>
+              <div class="mt-4 rehab-chart"><h3>Reabilitatsiya xaritasi</h3><div class="mt-3 grid grid-cols-3 md:grid-cols-5 gap-2">@for (cell of quality.heatmap; track cell.bodyPart) {<span class="rounded-xl px-2 py-2 text-center text-xs font-black" [class.bg-emerald-100]="cell.status === 'good'" [class.text-emerald-800]="cell.status === 'good'" [class.bg-amber-100]="cell.status === 'watch'" [class.text-amber-800]="cell.status === 'watch'" [class.bg-rose-100]="cell.status === 'risk'" [class.text-rose-800]="cell.status === 'risk'">{{ cell.bodyPart }}<br>{{ cell.score }}%</span>}</div></div>
+              <div class="mt-4 rehab-chart"><h3>Fatigue Drop repetition chart</h3><div class="mt-3 flex items-end gap-2 h-28">@for (rep of quality.fatigueDrop.repetitionScores; track rep.repetition) {<div class="flex-1 rounded-t bg-blue-500" [style.height.%]="rep.quality" [title]="'Takror ' + rep.repetition + ': ' + rep.quality"></div>}</div></div>
+            } @else {<p class="mt-4 rounded-2xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Sessiya saqlangandan keyin Ghost Skeleton farqi, Movement Quality, Fatigue Drop, Rehab Heatmap va Haftalik natija shu yerda chiqadi.</p>}
+          </div>
+          <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-xs font-black uppercase tracking-wider text-rose-600">Doctor panel</p><h2 class="text-xl font-black">Doctor Review Priority</h2>
+            @if (rehabQualityInsight(); as quality) {
+              <div class="mt-4 rounded-2xl border p-4" [class.border-rose-200]="quality.doctorPriority.priorityLevel === 'high'" [class.bg-rose-50]="quality.doctorPriority.priorityLevel === 'high'" [class.border-amber-200]="quality.doctorPriority.priorityLevel === 'medium'" [class.bg-amber-50]="quality.doctorPriority.priorityLevel === 'medium'" [class.border-emerald-200]="quality.doctorPriority.priorityLevel === 'low'" [class.bg-emerald-50]="quality.doctorPriority.priorityLevel === 'low'"><strong>Bugun ko‘rib chiqilishi kerak: {{ quality.doctorPriority.priorityLevel }}</strong>@for (reason of quality.doctorPriority.reasons; track reason) {<p class="mt-1 text-sm">• {{ reason }}</p>}</div>
+              <div class="mt-4 grid gap-3 text-sm"><div class="rehab-ai-card"><strong>Movement Quality Score</strong><p>{{ quality.movementQuality.doctorSummary }}</p></div><div class="rehab-ai-card"><strong>Compensation Warning</strong><p>{{ quality.compensationWarning.doctorClinicalNote }}</p></div><div class="rehab-ai-card"><strong>Weekly AI Rehab Report</strong><p>{{ quality.weeklyReport.progressSummary }} {{ quality.weeklyReport.doctorNote }}</p></div><div class="rehab-ai-card"><strong>Micro-Motor Precision</strong><p>{{ quality.microMotor.doctorClinicalNote }}</p></div></div>
+            } @else {<p class="mt-4 text-sm text-slate-500">Quality Engine sessiya saqlangandan keyin doctor priority, weekly report, fatigue drop va compensation warning chiqaradi.</p>}
+          </div>
+        </section>
+
+        <app-micro-motor-precision [patientId]="rehabilitationSelectedPatientId === 'umumiy' ? null : rehabilitationSelectedPatientId" [sessionId]="rehabilitationLatestSession()?.id ?? null" [movementQuality]="rehabilitationMetrics().movementQuality" [tremor]="rehabilitationMetrics().tremor" [fatigue]="rehabilitationMetrics().fatigue" (testCompleted)="rehabilitationOnMicroMotor($event)"></app-micro-motor-precision>
+
         <app-neurogame-rehab [patientId]="rehabilitationSelectedPatientId === 'umumiy' ? null : rehabilitationSelectedPatientId" [sessionId]="rehabilitationLatestSession()?.id ?? null" [movementQuality]="rehabilitationMetrics().movementQuality" [compensationIndex]="smartRehabInsight()?.compensation?.compensationIndex ?? 25" [fatigueIndex]="rehabilitationMetrics().fatigue" (gameCompleted)="rehabilitationOnNeuroGame($event)"></app-neurogame-rehab>
 
         <section class="grid xl:grid-cols-[.95fr_1.05fr] gap-5">
@@ -283,6 +307,7 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   private storage = inject(RehabilitationStorageService);
   private rehabAi = inject(RehabilitationAiService);
   private smartRehab = inject(SmartRehabDigitalTwinService);
+  private qualityEngine = inject(RehabQualityEngineService);
   private supabase = inject(SupabaseService);
 
   @ViewChild('rehabVideo') rehabVideoRef?: ElementRef<HTMLVideoElement>;
@@ -302,6 +327,8 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   rehabilitationAiStatus = signal<'idle' | 'analyzing' | 'completed' | 'failed'>('idle');
   smartRehabInsight = signal<SmartRehabInsight | null>(null);
   latestNeuroGameResult = signal<RehabNeuroGameResult | null>(null);
+  latestMicroMotorResult = signal<MicroMotorPrecisionResult | null>(null);
+  rehabQualityInsight = signal<RehabQualityInsight | null>(null);
   preExerciseCheck: RehabPainFatigueCheck = this.smartRehab.defaultCheck('pre');
   postExerciseCheck: RehabPainFatigueCheck = this.smartRehab.defaultCheck('post');
   rehabilitationMirrorPreview = signal(true);
@@ -478,11 +505,16 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
       createdAt: new Date().toISOString()
     };
     const history = this.storage.rehabilitationListSessions(session.patientId).filter((item) => item.id !== session.id);
-    const smartInsight = this.smartRehab.buildInsight(session, history, { pre: this.rehabilitationNormalizeCheck(this.preExerciseCheck, 'pre'), post: this.rehabilitationNormalizeCheck(this.postExerciseCheck, 'post') }, this.latestNeuroGameResult());
+    const checks = { pre: this.rehabilitationNormalizeCheck(this.preExerciseCheck, 'pre'), post: this.rehabilitationNormalizeCheck(this.postExerciseCheck, 'post') };
+    const smartInsight = this.smartRehab.buildInsight(session, history, checks, this.latestNeuroGameResult());
+    const qualityInsight = this.qualityEngine.buildInsight(session, history, smartInsight, checks, this.latestMicroMotorResult());
     session.smartRehab = smartInsight;
+    session.rehabQuality = qualityInsight;
     await this.storage.rehabilitationSaveSmartRehabInsight(smartInsight);
+    await this.storage.rehabilitationSaveQualityInsight(session, qualityInsight);
     const saved = await this.storage.rehabilitationSaveSession(session);
     this.smartRehabInsight.set(smartInsight);
+    this.rehabQualityInsight.set(qualityInsight);
     this.rehabilitationLatestSession.set(session);
     this.rehabilitationFeedback.set(saved.error ? `Lokal saqlandi, bulutga yozishda xatolik: ${saved.error.message}` : 'Sessiya bemor profili va shifokor paneli uchun saqlandi. Abdulloh AI tahlili boshlanmoqda.');
     this.rehabilitationFeedbackTone.set(saved.error ? 'warn' : 'good');
@@ -521,6 +553,12 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
   rehabilitationOnNeuroGame(result: RehabNeuroGameResult) {
     this.latestNeuroGameResult.set(result);
     this.rehabilitationFeedback.set('NeuroGame Rehab natijasi klinik ko‘rsatkich sifatida tayyorlandi. Sessiyani saqlanganda raqamli egizakka qo‘shiladi.');
+    this.rehabilitationFeedbackTone.set('good');
+  }
+
+  rehabilitationOnMicroMotor(result: MicroMotorPrecisionResult) {
+    this.latestMicroMotorResult.set(result);
+    this.rehabilitationFeedback.set('Mayda motorika testi tayyor. Sessiya saqlanganda Quality Engine hisobotiga qo‘shiladi.');
     this.rehabilitationFeedbackTone.set('good');
   }
 
@@ -676,6 +714,7 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
       ctx.fillStyle = '#ecfeff'; ctx.fillText(`${label} ${this.rehabilitationJointAngleLabel(idx)}°`, x + 7, y - 7);
     }
     ctx.strokeStyle = 'rgba(16,185,129,.75)'; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(w * .18, h * .75); ctx.quadraticCurveTo(w * .5, h * .18, w * .82, h * .45); ctx.stroke(); ctx.setLineDash([]);
+    this.rehabilitationDrawGhostSkeleton(ctx, pose, w, h);
     ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 3; ctx.beginPath();
     this.rehabilitationTrajectory.slice(-24).forEach((point, index) => index ? ctx.lineTo(point.x / 220 * w, point.y / 140 * h) : ctx.moveTo(point.x / 220 * w, point.y / 140 * h)); ctx.stroke();
 
@@ -693,6 +732,22 @@ export class RehabilitationMonitoringComponent implements OnInit, OnDestroy {
     if (this.rehabilitationFeedbackTone() === 'bad' || this.rehabilitationFeedbackTone() === 'warn') {
       ctx.fillStyle = 'rgba(239,68,68,.88)'; ctx.beginPath(); ctx.arc(w * .72, h * .28, 13, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'white'; ctx.fillText('!', w * .715, h * .292);
     }
+  }
+
+  private rehabilitationDrawGhostSkeleton(ctx: CanvasRenderingContext2D, pose: { x: number; y: number; visibility?: number }[], w: number, h: number) {
+    ctx.save();
+    ctx.setLineDash([10, 8]);
+    ctx.strokeStyle = 'rgba(125,211,252,.72)';
+    ctx.lineWidth = 3;
+    for (const [a, b] of REHAB_POSE_CONNECTIONS) {
+      const p1 = pose[a]; const p2 = pose[b];
+      if (!p1 || !p2) continue;
+      ctx.beginPath(); ctx.moveTo((p1.x + .045) * w, Math.max(.05, p1.y - .035) * h); ctx.lineTo((p2.x + .045) * w, Math.max(.05, p2.y - .035) * h); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(224,242,254,.95)';
+    ctx.fillText('Ideal ghost skeleton', w * .58, h * .12);
+    ctx.restore();
   }
 
   private rehabilitationUpdateLiveMetrics(poseResult: NormalizedPoseLandmarkerResult | null, handResult: NormalizedHandLandmarkerResult | null) {
