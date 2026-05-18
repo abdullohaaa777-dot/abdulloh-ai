@@ -97,3 +97,199 @@
 .fade-in-up {
   animation: fadeIn 0.5s ease-out;
 }
+
+/* Abdulloh AI internal premium dark-gold system theme overrides.
+   These target visual utilities only; component logic, routes and handlers remain unchanged. */
+@layer base {
+  :root {
+    --color-medical-primary: #D4AF37;
+    --color-medical-secondary: #F2D675;
+    --color-medical-bg: #030403;
+    --color-medical-surface: rgba(12, 13, 10, 0.92);
+    --color-medical-border: rgba(212, 175, 55, 0.32);
+    --color-medical-text: #F8F1D0;
+    --color-medical-text-muted: #C9C2A4;
+  }
+
+  body {
+    background: radial-gradient(circle at 18% 8%, rgba(212, 175, 55, 0.13), transparent 30%), linear-gradient(135deg, #030403, #050706 48%, #070807) !important;
+    color: #F8F1D0 !important;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: rgba(10, 11, 9, 0.92) !important;
+    border-color: rgba(212, 175, 55, 0.34) !important;
+    color: #F8F1D0 !important;
+    caret-color: #F2D675;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #8F8A78 !important;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: rgba(242, 214, 117, 0.7) !important;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.16) !important;
+    outline: none !important;
+  }
+}
+
+@layer components {
+  .glass,
+  .glass-panel,
+  .card-vibrant {
+    background: rgba(12, 13, 10, 0.88) !important;
+    border-color: rgba(212, 175, 55, 0.3) !important;
+    color: #F8F1D0 !important;
+    box-shadow: 0 0 35px rgba(212, 175, 55, 0.08) !important;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #D4AF37, #F2D675) !important;
+    color: #120F05 !important;
+    border: 1px solid rgba(242, 214, 117, 0.55) !important;
+    box-shadow: 0 0 32px rgba(212, 175, 55, 0.18) !important;
+  }
+
+  .btn-secondary,
+  .input-field {
+    background: rgba(10, 11, 9, 0.9) !important;
+    border-color: rgba(212, 175, 55, 0.34) !important;
+    color: #F8F1D0 !important;
+  }
+
+  .chat-bubble-user {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.92), rgba(242, 214, 117, 0.9)) !important;
+    color: #120F05 !important;
+  }
+
+  .chat-bubble-ai {
+    background: rgba(12, 13, 10, 0.9) !important;
+    border-color: rgba(212, 175, 55, 0.28) !important;
+    color: #F8F1D0 !important;
+  }
+}
+
+@layer utilities {
+  .bg-white,
+  .bg-slate-50,
+  .bg-slate-100,
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-zinc-50,
+  .bg-neutral-50,
+  .bg-stone-50 {
+    background-color: rgba(12, 13, 10, 0.9) !important;
+  }
+
+  .bg-white\/95,
+  .bg-white\/90,
+  .bg-white\/80,
+  .bg-white\/70,
+  .bg-white\/60,
+  .bg-white\/50,
+  .bg-slate-50\/50,
+  .bg-slate-50\/30,
+  .bg-gray-50\/50 {
+    background-color: rgba(12, 13, 10, 0.78) !important;
+  }
+
+  .bg-blue-50,
+  .bg-indigo-50,
+  .bg-cyan-50,
+  .bg-sky-50,
+  .bg-emerald-50,
+  .bg-green-50,
+  .bg-teal-50,
+  .bg-amber-50,
+  .bg-yellow-50,
+  .bg-red-50,
+  .bg-rose-50,
+  .bg-violet-50,
+  .bg-purple-50 {
+    background-color: rgba(12, 13, 10, 0.86) !important;
+  }
+
+  .from-white {
+    --tw-gradient-from: rgba(12, 13, 10, 0.94) var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: rgba(12, 13, 10, 0) var(--tw-gradient-to-position) !important;
+  }
+
+  .to-slate-50,
+  .to-white {
+    --tw-gradient-to: rgba(5, 7, 6, 0.95) var(--tw-gradient-to-position) !important;
+  }
+
+  .border-white,
+  .border-white\/70,
+  .border-white\/20,
+  .border-slate-50,
+  .border-slate-100,
+  .border-slate-200,
+  .border-gray-100,
+  .border-gray-200,
+  .border-zinc-200,
+  .border-medical-border {
+    border-color: rgba(212, 175, 55, 0.3) !important;
+  }
+
+  .text-medical-text,
+  .text-slate-950,
+  .text-slate-900,
+  .text-slate-800,
+  .text-gray-950,
+  .text-gray-900,
+  .text-gray-800,
+  .text-zinc-900 {
+    color: #F8F1D0 !important;
+  }
+
+  .text-medical-text-muted,
+  .text-slate-700,
+  .text-slate-600,
+  .text-slate-500,
+  .text-gray-700,
+  .text-gray-600,
+  .text-gray-500 {
+    color: #C9C2A4 !important;
+  }
+
+  .text-slate-400,
+  .text-slate-300,
+  .text-gray-400,
+  .text-gray-300 {
+    color: #8F8A78 !important;
+  }
+
+  .text-medical-primary,
+  .text-indigo-600,
+  .text-blue-600,
+  .text-cyan-600,
+  .text-emerald-600,
+  .text-teal-600 {
+    color: #D4AF37 !important;
+  }
+
+  .hover\:bg-slate-50:hover,
+  .hover\:bg-slate-100:hover,
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-white:hover,
+  .hover\:bg-medical-primary\/5:hover,
+  .hover\:bg-medical-primary\/10:hover {
+    background-color: rgba(212, 175, 55, 0.12) !important;
+  }
+
+  .hover\:text-medical-primary:hover,
+  .group:hover .group-hover\:text-medical-primary {
+    color: #F2D675 !important;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.35) !important;
+  }
+}
