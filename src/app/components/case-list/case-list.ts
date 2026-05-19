@@ -10,64 +10,76 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, MatIconModule, RouterModule],
   template: `
-    <div class="max-w-6xl mx-auto">
-      <div class="flex items-center justify-between mb-10">
-        <div>
-          <h2 class="text-3xl font-extrabold text-medical-text tracking-tight">Bemorlar holatlari</h2>
-          <p class="text-medical-text-muted font-medium">Barcha saqlangan tahlillar ro'yxati</p>
+    <div class="premium-cases mx-auto max-w-6xl">
+      <div class="premium-header mb-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-start gap-4">
+          <div class="header-icon">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <div>
+            <p class="section-kicker">KLINIK PANEL</p>
+            <h2 class="text-3xl font-black tracking-tight text-[#F7F0D0] md:text-4xl">Bemorlar holatlari</h2>
+            <p class="mt-1 text-base font-medium text-[#C9C2A4] md:text-lg">Barcha saqlangan tahlillar ro'yxati</p>
+          </div>
         </div>
-        <a routerLink="/new-case" class="btn-primary px-6 py-3">
+        <a routerLink="/new-case" class="premium-new-case">
           <mat-icon>add</mat-icon>
           Yangi holat
         </a>
       </div>
 
-      <div class="grid gap-5">
+      <div class="grid gap-6">
         @for (case of cases(); track case.id) {
-          <a [routerLink]="['/case', case.id]" 
-             class="bg-white border border-medical-border p-6 rounded-2xl hover:border-medical-primary hover:shadow-lg hover:shadow-medical-primary/5 transition-all group flex items-center justify-between">
-            <div class="flex items-center gap-6">
-              <div class="w-14 h-14 rounded-2xl bg-slate-50 border border-medical-border flex items-center justify-center text-medical-text-muted group-hover:bg-medical-primary/10 group-hover:text-medical-primary group-hover:border-medical-primary/20 transition-all">
-                <mat-icon class="text-3xl">person</mat-icon>
+          <a [routerLink]="['/case', case.id]"
+             class="case-card group">
+            <div class="patient-block">
+              <div class="patient-avatar">
+                <mat-icon>person</mat-icon>
               </div>
-              <div>
-                <div class="flex items-center gap-2 mb-1">
-                  <h3 class="text-lg font-bold text-medical-text">Bemor #{{ case.id.slice(0, 8) }}</h3>
-                  <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+              <div class="min-w-0">
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                  <h3 class="truncate text-xl font-black text-[#F7F0D0]">Bemor #{{ case.id.slice(0, 8) }}</h3>
+                  <span class="gender-badge">
                     {{ case.gender === 'male' ? 'Erkak' : 'Ayol' }}
                   </span>
                 </div>
-                <p class="text-sm text-medical-text-muted font-medium">
-                  {{ case.age }} yosh • {{ case.created_at | date:'dd.MM.yyyy HH:mm' }}
-                </p>
+                <div class="metadata-row">
+                  <span><mat-icon>cake</mat-icon>{{ case.age }} yosh</span>
+                  <span><mat-icon>schedule</mat-icon>{{ case.created_at | date:'dd.MM.yyyy HH:mm' }}</span>
+                </div>
               </div>
             </div>
-            <div class="flex items-center gap-4">
-              <div class="text-right hidden md:block">
-                <p class="text-[10px] text-medical-text-muted uppercase font-bold tracking-widest mb-1">Asosiy simptom</p>
-                <p class="text-sm text-medical-text font-semibold truncate max-w-[250px]">{{ case.symptoms }}</p>
-              </div>
-              <button (click)="deleteCase($event, case.id)" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all" title="O'chirish">
+
+            <div class="symptom-block">
+              <p>Asosiy simptom</p>
+              <strong>{{ case.symptoms }}</strong>
+            </div>
+
+            <div class="action-row">
+              <button (click)="deleteCase($event, case.id)" class="action-btn danger" title="O'chirish" aria-label="Bemor holatini o'chirish">
                 <mat-icon>delete</mat-icon>
               </button>
-              <div class="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 group-hover:text-medical-primary group-hover:bg-medical-primary/5 transition-all">
+              <div class="action-btn view" aria-hidden="true">
                 <mat-icon>chevron_right</mat-icon>
               </div>
             </div>
           </a>
         } @empty {
-          <div class="text-center py-24 bg-white border border-dashed border-medical-border rounded-3xl">
-            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <mat-icon class="text-slate-300 text-5xl h-12 w-12">folder_open</mat-icon>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <mat-icon>folder_open</mat-icon>
             </div>
-            <h3 class="text-xl font-bold text-medical-text mb-2">Hozircha holatlar mavjud emas</h3>
-            <p class="text-medical-text-muted mb-8 max-w-xs mx-auto">Tizimdan foydalanishni boshlash uchun birinchi bemor ma'lumotlarini kiriting</p>
-            <a routerLink="/new-case" class="btn-primary inline-flex">Birinchi holatni yarating</a>
+            <h3>Hozircha holatlar mavjud emas</h3>
+            <p>Tizimdan foydalanishni boshlash uchun birinchi bemor ma'lumotlarini kiriting</p>
+            <a routerLink="/new-case" class="premium-new-case inline-flex">Birinchi holatni yarating</a>
           </div>
         }
       </div>
     </div>
   `,
+  styles: [`
+    :host{display:block}.premium-cases{position:relative;z-index:1}.section-kicker{color:#D4AF37;font-size:.76rem;font-weight:900;letter-spacing:.24em;text-transform:uppercase}.header-icon{display:grid;place-items:center;min-width:4rem;width:4rem;height:4rem;border-radius:1.25rem;border:1px solid rgba(212,175,55,.42);background:rgba(12,13,10,.86);color:#F5D76E;box-shadow:0 0 34px rgba(212,175,55,.16)}.header-icon mat-icon{font-size:2rem;width:2rem;height:2rem}.premium-new-case{display:inline-flex;min-height:3.25rem;align-items:center;justify-content:center;gap:.65rem;border-radius:1rem;border:1px solid rgba(212,175,55,.45);background:rgba(12,13,10,.78);padding:.85rem 1.2rem;color:#F5D76E;font-weight:900;text-decoration:none;box-shadow:0 0 30px rgba(212,175,55,.10);transition:.2s}.premium-new-case:hover{background:rgba(212,175,55,.14);box-shadow:0 0 42px rgba(212,175,55,.22);transform:translateY(-1px)}.case-card{display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,.8fr) auto;align-items:center;gap:1.5rem;border:1px solid rgba(212,175,55,.30);border-radius:1.6rem;background:rgba(12,13,10,.86);padding:1.7rem 2rem;text-decoration:none;box-shadow:0 22px 70px rgba(0,0,0,.25);backdrop-filter:blur(18px);transition:.2s}.case-card:hover{border-color:rgba(245,215,110,.72);background:rgba(18,16,10,.95);box-shadow:0 0 46px rgba(212,175,55,.18)}.patient-block{display:flex;min-width:0;align-items:center;gap:1.25rem}.patient-avatar{display:grid;place-items:center;min-width:3.6rem;width:3.6rem;height:3.6rem;border-radius:1.1rem;border:1px solid rgba(212,175,55,.38);background:rgba(212,175,55,.12);color:#F5D76E;box-shadow:0 0 26px rgba(212,175,55,.12)}.patient-avatar mat-icon{font-size:2rem;width:2rem;height:2rem}.gender-badge{border:1px solid rgba(212,175,55,.36);border-radius:999px;background:rgba(212,175,55,.10);padding:.22rem .62rem;color:#D4AF37;font-size:.65rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.metadata-row{display:flex;flex-wrap:wrap;gap:.85rem;color:#8D8876;font-size:.9rem;font-weight:700}.metadata-row span{display:inline-flex;align-items:center;gap:.35rem}.metadata-row mat-icon{color:#D4AF37;font-size:1rem;width:1rem;height:1rem}.symptom-block{border-left:1px solid rgba(212,175,55,.22);padding-left:1.5rem;min-width:0}.symptom-block p{margin:0 0 .35rem;color:#D4AF37;font-size:.68rem;font-weight:900;letter-spacing:.22em;text-transform:uppercase}.symptom-block strong{display:-webkit-box;overflow:hidden;color:#F7F0D0;font-size:1.05rem;font-weight:900;line-height:1.4;-webkit-line-clamp:2;-webkit-box-orient:vertical}.action-row{display:flex;justify-content:flex-end;gap:.8rem}.action-btn{display:grid;place-items:center;width:3.35rem;height:3.35rem;border-radius:1rem;border:1px solid rgba(212,175,55,.32);background:rgba(3,4,3,.68);transition:.2s}.action-btn.view{color:#F5D76E}.action-btn.view:hover,.case-card:hover .action-btn.view{border-color:rgba(245,215,110,.65);box-shadow:0 0 28px rgba(212,175,55,.18)}.action-btn.danger{color:#FF6B6B;border-color:rgba(255,77,77,.22)}.action-btn.danger:hover{background:rgba(255,77,77,.10);border-color:rgba(255,77,77,.55);box-shadow:0 0 28px rgba(255,77,77,.18)}.empty-state{text-align:center;border:1px dashed rgba(212,175,55,.35);border-radius:1.7rem;background:rgba(12,13,10,.78);padding:5rem 1.5rem;color:#C9C2A4}.empty-icon{display:grid;place-items:center;width:5rem;height:5rem;margin:0 auto 1.5rem;border-radius:999px;border:1px solid rgba(212,175,55,.28);background:rgba(212,175,55,.08);color:#D4AF37}.empty-icon mat-icon{font-size:3rem;width:3rem;height:3rem}.empty-state h3{margin-bottom:.5rem;color:#F7F0D0;font-size:1.35rem;font-weight:900}.empty-state p{max-width:22rem;margin:0 auto 2rem}@media(max-width:900px){.case-card{grid-template-columns:1fr;gap:1.25rem;padding:1.2rem}.symptom-block{border-left:0;border-top:1px solid rgba(212,175,55,.20);padding-left:0;padding-top:1rem}.action-row{justify-content:flex-start}.action-btn{width:3rem;height:3rem}.premium-new-case{width:100%}.premium-header{align-items:stretch}}
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CaseListComponent implements OnInit {

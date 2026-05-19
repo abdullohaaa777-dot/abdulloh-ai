@@ -1,0 +1,359 @@
+import { Injectable, inject } from '@angular/core';
+import { SupabaseService } from './supabase';
+
+export interface SdhOrganRisk {
+  key: 'heart' | 'lungs' | 'brain' | 'metabolic' | 'stress' | 'cellular';
+  nameUz: string;
+  percent: number;
+  levelUz: string;
+  trendUz: string;
+  reasons: string[];
+}
+
+export interface SdhInputSnapshot {
+  patientId: string;
+  cameraEnabled: boolean;
+  microphoneEnabled: boolean;
+  wearableProvided: boolean;
+  labProvided: boolean;
+  questionnaireProvided: boolean;
+  heartRate: number | null;
+  hrv: number | null;
+  spo2: number | null;
+  sleepHours: number | null;
+  glucose: number | null;
+  hbA1c: number | null;
+  hemoglobin: number | null;
+  crp: number | null;
+  creatinine: number | null;
+  alt: number | null;
+  fatigue: number;
+  dyspnea: number;
+  stress: number;
+  sleepQuality: number;
+  chestDiscomfort: boolean;
+  neurologicalAsymmetry: boolean;
+}
+
+export interface SdhFeatureSet {
+  facialFatigueScore: number;
+  pallorCyanosisSuspicionScore: number;
+  microExpressionVariability: number;
+  motorSymmetryScore: number;
+  respiratoryMotionPattern: number;
+  voiceStressIndex: number;
+  speechPauseFrequency: number;
+  breathPressureDuringSpeech: number;
+  hrvTrend: number;
+  restingHeartRateTrend: number;
+  spo2Instability: number;
+  sleepRecoveryScore: number;
+  activityDeclineScore: number;
+  inflammatoryBurdenScore: number;
+  metabolicStressScore: number;
+  anemiaRiskSignal: number;
+  renalStressSignal: number;
+  hepaticStressSignal: number;
+  fatigueIndex: number;
+  dyspneaIndex: number;
+  stressLoadScore: number;
+  neurologicalSymptomScore: number;
+}
+
+export interface SdhResult {
+  id: string;
+  patientId: string;
+  createdAt: string;
+  overallRisk: number;
+  physiologicalStability: number;
+  confidence: number;
+  signalQuality: number;
+  emergencyWarning: boolean;
+  usedInputs: string[];
+  inputSnapshot: SdhInputSnapshot;
+  features: SdhFeatureSet;
+  organRisks: SdhOrganRisk[];
+  differentialReasoning: { titleUz: string; percent: number; systemUz: string }[];
+  timeline: number[];
+  aiSummary: string;
+  aiFindings: string[];
+  patientExplanation: string;
+  doctorNote: string;
+  recommendations: string[];
+}
+
+export interface SdhAdvancedTestResult {
+  patientId: string;
+  sessionId: string;
+  createdAt: string;
+  testMode: 'automatic' | 'manual';
+  completedTests: string[];
+  signalQuality: Record<string, number>;
+  breathingResults: Record<string, number | string | boolean>;
+  facialMimicResults: Record<string, number | string | boolean>;
+  handMotorResults: Record<string, number | string | boolean>;
+  coughVoiceReadingResults: Record<string, number | string | boolean>;
+  cardiacResults: Record<string, number | string | boolean>;
+  manualInputs: Record<string, number | string | boolean | null>;
+  wearableInputs: Record<string, number | string | boolean | null>;
+  labInputs: Record<string, number | string | boolean | null>;
+  riskScores: Record<string, number>;
+  organRisks: SdhOrganRisk[];
+  geminiAnalysis: unknown;
+  fallbackAnalysis: unknown;
+  emergencyFlags: string[];
+  recommendations: string[];
+  doctorSummary: string;
+  patientSummary: string;
+  rawMetrics: Record<string, unknown>;
+  chartData: { radar: { label: string; value: number }[]; bars: { label: string; value: number }[]; timeline: number[] };
+}
+
+export type SdhTestCompletionStatus = 'completed' | 'completedWithWarning' | 'skipped' | 'failed' | 'pending';
+
+export interface SdhTestCompletionState {
+  breathing: SdhTestCompletionStatus;
+  facialMimic: SdhTestCompletionStatus;
+  handMotor: SdhTestCompletionStatus;
+  coughVoiceReading: SdhTestCompletionStatus;
+  cardiac: SdhTestCompletionStatus;
+}
+
+export interface SdhFinalAnalysisResponse {
+  overallRiskPercent: number;
+  overallStabilityPercent: number;
+  confidencePercent: number;
+  testScores: { breathing: number; facialMimic: number; handMotor: number; coughVoiceReading: number; cardiac: number };
+  organRisks: { cardiovascular: number; respiratory: number; neuromotor: number; psychophysiologicalStress: number; metabolic: number; cellularInflammatory: number };
+  mainFindings: string[];
+  riskExplanation: string;
+  breathingAnalysis: string;
+  facialMimicAnalysis: string;
+  handMotorAnalysis: string;
+  voiceCoughReadingAnalysis: string;
+  cardiacAnalysis: string;
+  trendComparison: { hasPrevious: boolean; riskChange: 'increased' | 'decreased' | 'stable' | 'unknown'; summary: string };
+  patientSummary: string;
+  doctorSummary: string;
+  recommendations: string[];
+  emergencyWarning: { active: boolean; message: string };
+  limitations: string[];
+  disclaimer: string;
+}
+
+export interface SdhFinalAnalysisSession {
+  id: string;
+  patientId: string | null;
+  guestSession: boolean;
+  createdAt: string;
+  module: 'Silent Disease Hunter';
+  analysisVersion: 'advanced-final-v1';
+  source: 'auto' | 'manual';
+  completedTests: SdhTestCompletionState;
+  skippedTests: string[];
+  signalQuality: Record<string, number>;
+  rawTestMetrics: {
+    breathingResults: Record<string, number | string | boolean>;
+    facialMimicResults: Record<string, number | string | boolean>;
+    handMotorResults: Record<string, number | string | boolean>;
+    coughVoiceReadingResults: Record<string, number | string | boolean>;
+    cardiacResults: Record<string, number | string | boolean>;
+  };
+  manualInputs: Record<string, number | string | boolean | null>;
+  labInputs: Record<string, number | string | boolean | null>;
+  wearableInputs: Record<string, number | string | boolean | null>;
+  geminiAnalysis: unknown;
+  fallbackAnalysis: unknown;
+  finalAnalysis: SdhFinalAnalysisResponse;
+  riskScores: Record<string, number>;
+  organRisks: Record<string, number>;
+  trendComparison: SdhFinalAnalysisResponse['trendComparison'];
+  patientSummary: string;
+  doctorSummary: string;
+  recommendations: string[];
+  emergencyWarning: SdhFinalAnalysisResponse['emergencyWarning'];
+  chartData: { radar: { label: string; value: number }[]; bar: { label: string; value: number }[]; timeline: number[]; organRisk: { label: string; value: number }[] };
+}
+
+@Injectable({ providedIn: 'root' })
+export class SilentDiseaseHunterStorageService {
+  private readonly sdhLocalKey = 'abdullohAI_silentDiseaseHunterResults';
+  private readonly sdhAdvancedLocalKey = 'abdullohAI_sdhAdvancedTestResults';
+  private readonly sdhFinalAnalysisLocalKey = 'abdullohAI_sdhAdvancedFinalAnalyses';
+  private supabase = inject(SupabaseService);
+
+  sdhListLocal(): SdhResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.sdhLocalKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Silent Disease Hunter localStorage parse error:', error);
+      return [];
+    }
+  }
+
+  async sdhList(patientId?: string): Promise<SdhResult[]> {
+    if (this.supabase.isConfigured()) {
+      try {
+        let query = this.supabase.client
+          .from('silent_disease_hunter_results')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (patientId) query = query.eq('patient_id', patientId);
+        const { data, error } = await query;
+        if (!error && Array.isArray(data)) {
+          return data.map((row) => this.sdhFromDbRow(row));
+        }
+        console.warn('Silent Disease Hunter Supabase list fallback:', error);
+      } catch (error) {
+        console.warn('Silent Disease Hunter Supabase list failed, local fallback used:', error);
+      }
+    }
+
+    const local = this.sdhListLocal();
+    return patientId ? local.filter((x) => x.patientId === patientId) : local;
+  }
+
+
+  sdhListAdvanced(patientId?: string): SdhAdvancedTestResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.sdhAdvancedLocalKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed as SdhAdvancedTestResult[] : [];
+      return patientId ? list.filter((x) => x.patientId === patientId) : list;
+    } catch (error) {
+      console.error('Silent Disease Hunter advanced localStorage parse error:', error);
+      return [];
+    }
+  }
+
+  sdhSaveAdvanced(result: SdhAdvancedTestResult): void {
+    if (typeof window === 'undefined') return;
+    const normalized: SdhAdvancedTestResult = {
+      ...result,
+      sessionId: result.sessionId || `silentDiseaseHunter-${Date.now()}`,
+      createdAt: result.createdAt || new Date().toISOString(),
+      completedTests: Array.isArray(result.completedTests) ? result.completedTests : [],
+      emergencyFlags: Array.isArray(result.emergencyFlags) ? result.emergencyFlags : [],
+      recommendations: Array.isArray(result.recommendations) ? result.recommendations : []
+    };
+    const list = this.sdhListAdvanced().filter((x) => x.sessionId !== normalized.sessionId);
+    list.unshift(normalized);
+    localStorage.setItem(this.sdhAdvancedLocalKey, JSON.stringify(list.slice(0, 160)));
+  }
+
+
+  sdhListFinalAnalyses(patientId?: string): SdhFinalAnalysisSession[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(this.sdhFinalAnalysisLocalKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed as SdhFinalAnalysisSession[] : [];
+      return patientId ? list.filter((x) => x.patientId === patientId) : list;
+    } catch (error) {
+      console.error('Silent Disease Hunter final analysis localStorage parse error:', error);
+      return [];
+    }
+  }
+
+  sdhSaveFinalAnalysis(session: SdhFinalAnalysisSession): void {
+    if (typeof window === 'undefined') return;
+    const normalized: SdhFinalAnalysisSession = {
+      ...session,
+      id: session.id || `sdh-analysis-${Date.now()}`,
+      createdAt: session.createdAt || new Date().toISOString(),
+      module: 'Silent Disease Hunter',
+      analysisVersion: 'advanced-final-v1',
+      recommendations: Array.isArray(session.recommendations) ? session.recommendations : []
+    };
+    const list = this.sdhListFinalAnalyses().filter((x) => x.id !== normalized.id);
+    list.unshift(normalized);
+    localStorage.setItem(this.sdhFinalAnalysisLocalKey, JSON.stringify(list.slice(0, 200)));
+  }
+
+  async sdhSave(result: SdhResult): Promise<{ error: { message: string } | null }> {
+    const normalized = this.sdhNormalize(result);
+    if (typeof window !== 'undefined') {
+      const list = this.sdhListLocal().filter((x) => x.id !== normalized.id);
+      list.unshift(normalized);
+      localStorage.setItem(this.sdhLocalKey, JSON.stringify(list.slice(0, 120)));
+    }
+
+    if (this.supabase.isConfigured()) {
+      try {
+        const { error } = await this.supabase.client
+          .from('silent_disease_hunter_results')
+          .upsert(this.sdhToDbRow(normalized));
+        if (error) return { error: { message: error.message } };
+      } catch (error) {
+        return { error: { message: error instanceof Error ? error.message : 'Silent Disease Hunter saqlashda xatolik' } };
+      }
+    }
+
+    return { error: null };
+  }
+
+  private sdhNormalize(result: SdhResult): SdhResult {
+    return {
+      ...result,
+      id: result.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `sdh-${Date.now()}`),
+      createdAt: result.createdAt || new Date().toISOString(),
+      organRisks: Array.isArray(result.organRisks) ? result.organRisks : [],
+      differentialReasoning: Array.isArray(result.differentialReasoning) ? result.differentialReasoning : [],
+      timeline: Array.isArray(result.timeline) ? result.timeline : [],
+      recommendations: Array.isArray(result.recommendations) ? result.recommendations : []
+    };
+  }
+
+  private sdhToDbRow(result: SdhResult) {
+    return {
+      id: result.id,
+      patient_id: result.patientId,
+      user_id: this.supabase.user()?.id ?? null,
+      created_at: result.createdAt,
+      overall_risk: result.overallRisk,
+      physiological_stability: result.physiologicalStability,
+      confidence: result.confidence,
+      signal_quality: result.signalQuality,
+      emergency_warning: result.emergencyWarning,
+      used_inputs: result.usedInputs,
+      input_snapshot: result.inputSnapshot,
+      features: result.features,
+      organ_risks: result.organRisks,
+      differential_reasoning: result.differentialReasoning,
+      timeline: result.timeline,
+      ai_summary: result.aiSummary,
+      ai_findings: result.aiFindings,
+      patient_explanation: result.patientExplanation,
+      doctor_note: result.doctorNote,
+      recommendations: result.recommendations
+    };
+  }
+
+  private sdhFromDbRow(row: Record<string, unknown>): SdhResult {
+    return {
+      id: String(row['id'] ?? `sdh-${Date.now()}`),
+      patientId: String(row['patient_id'] ?? 'umumiy'),
+      createdAt: String(row['created_at'] ?? new Date().toISOString()),
+      overallRisk: Number(row['overall_risk'] ?? 0),
+      physiologicalStability: Number(row['physiological_stability'] ?? 0),
+      confidence: Number(row['confidence'] ?? 0),
+      signalQuality: Number(row['signal_quality'] ?? 0),
+      emergencyWarning: Boolean(row['emergency_warning']),
+      usedInputs: Array.isArray(row['used_inputs']) ? row['used_inputs'] as string[] : [],
+      inputSnapshot: row['input_snapshot'] as SdhInputSnapshot,
+      features: row['features'] as SdhFeatureSet,
+      organRisks: Array.isArray(row['organ_risks']) ? row['organ_risks'] as SdhOrganRisk[] : [],
+      differentialReasoning: Array.isArray(row['differential_reasoning']) ? row['differential_reasoning'] as { titleUz: string; percent: number; systemUz: string }[] : [],
+      timeline: Array.isArray(row['timeline']) ? row['timeline'] as number[] : [],
+      aiSummary: String(row['ai_summary'] ?? ''),
+      aiFindings: Array.isArray(row['ai_findings']) ? row['ai_findings'] as string[] : [],
+      patientExplanation: String(row['patient_explanation'] ?? ''),
+      doctorNote: String(row['doctor_note'] ?? ''),
+      recommendations: Array.isArray(row['recommendations']) ? row['recommendations'] as string[] : []
+    };
+  }
+}

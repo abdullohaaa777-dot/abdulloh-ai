@@ -12,8 +12,17 @@ import { CysticFibrosisComponent } from './components/cystic-fibrosis/cystic-fib
 import { ScenarioSimulatorComponent } from './components/scenario-simulator/scenario-simulator';
 import { TreatmentAdherenceComponent } from './components/treatment-adherence/treatment-adherence';
 import { DermatologyAIComponent } from './components/dermatology-ai/dermatology-ai';
+import { NeuroMotorComponent } from './components/neuromotor/neuromotor';
+import { RespiratoryVoiceComponent } from './components/respiratory-voice/respiratory-voice';
+import { HeartMicroImpulseComponent } from './components/heart-micro-impulse/heart-micro-impulse';
+import { SilentDiseaseHunterComponent } from './components/silent-disease-hunter/silent-disease-hunter';
+import { RehabilitationMonitoringComponent } from './components/rehabilitation-monitoring/rehabilitation-monitoring';
+import { LandingComponent } from './components/landing/landing';
+import { PremiumLandingPageComponent } from './components/landing-premium/premium-landing-page';
 
 export const routes: Routes = [
+  { path: 'home', component: PremiumLandingPageComponent },
+  { path: 'home-legacy', component: LandingComponent },
   { path: 'auth', component: AuthComponent },
   {
     path: '',
@@ -22,6 +31,11 @@ export const routes: Routes = [
       { path: 'dashboard', component: CaseListComponent },
       { path: 'digital-twin', component: DigitalTwinComponent },
       { path: 'dermatology-ai', component: DermatologyAIComponent },
+      { path: 'neuromotor', component: NeuroMotorComponent },
+      { path: 'nafas-ovoz', component: RespiratoryVoiceComponent },
+      { path: 'yurak-mikro-impuls', component: HeartMicroImpulseComponent },
+      { path: 'silent-disease-hunter', component: SilentDiseaseHunterComponent },
+      { path: 'reabilitatsiya-nazorati', component: RehabilitationMonitoringComponent },
       { path: 'monitoring', component: MonitoringComponent },
       { path: 'telemedicine', component: TelemedicineComponent },
       { path: 'analytics', component: AdminAnalyticsComponent },

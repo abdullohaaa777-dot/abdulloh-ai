@@ -158,16 +158,60 @@ export interface AnalysisResult {
   providedIn: 'root'
 })
 export class AiService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    if (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY) {
+      this.ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    }
+  }
+
+  private getAiClient(): GoogleGenAI {
+    if (!this.ai) {
+      throw new Error("AI xizmati sozlanmagan: GEMINI_API_KEY topilmadi. Administrator bilan bog'laning.");
+    }
+    return this.ai;
+  }
+
+  private getFallbackAnalysis(message: string): AnalysisResult {
+    return {
+      risk_score: {
+        formula: 'N/A',
+        z_value: 'N/A',
+        risk_percent: 'N/A',
+        risk_category: 'unknown'
+      },
+      laboratory_analysis: [],
+      five_year_risks: {
+        heart: 0,
+        kidney: 0,
+        lung: 0,
+        liver: 0,
+        cancer: 0,
+        diabetes: 0,
+        anemia: 0,
+        sepsis: 0,
+        rehospitalization: 0,
+        nutritional_deficiency: 0,
+        chronic_inflammation: 0,
+        quality_of_life_decline: 0
+      },
+      computed_formulas: [],
+      missing_inputs_needed: [],
+      notes: [message],
+      clinical_summary: message,
+      treatment_plan: {
+        lifestyle: [],
+        medications: []
+      },
+      differential_diagnosis: [],
+      recommended_tests: [],
+      red_flags: []
+    };
   }
 
   async analyzeCase(caseData: CaseData, mode: 'patient' | 'doctor', locale: 'uz' | 'ru' | 'en' = 'uz'): Promise<AnalysisResult> {
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API kaliti topilmadi. Iltimos, sozlamalarni tekshiring.');
-    }
+    const aiClient = this.getAiClient();
 
     const systemInstruction = `You are "Abdulloh AI", a professional clinical decision support system.
     Your task is to analyze laboratory results and integrate them with existing risk calculations and clinical reasoning.
@@ -429,7 +473,7 @@ export class AiService {
       
       Iltimos, ushbu ma'lumotlar asosida tahlil bering.`;
 
-    const response = await this.ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
@@ -447,16 +491,28 @@ export class AiService {
         text = text.split('```')[1].split('```')[0];
       }
       
-      return JSON.parse(text.trim()) as AnalysisResult;
+      const parsed = JSON.parse(text.trim()) as Partial<AnalysisResult>;
+      return {
+        ...this.getFallbackAnalysis('AI tahlili muvaffaqiyatli yakunlandi.'),
+        ...parsed,
+        laboratory_analysis: parsed.laboratory_analysis ?? [],
+        computed_formulas: parsed.computed_formulas ?? [],
+        missing_inputs_needed: parsed.missing_inputs_needed ?? [],
+        notes: parsed.notes ?? [],
+        differential_diagnosis: parsed.differential_diagnosis ?? [],
+        recommended_tests: parsed.recommended_tests ?? [],
+        red_flags: parsed.red_flags ?? []
+      } as AnalysisResult;
     } catch (e) {
       console.error('Failed to parse AI response:', e);
       console.log('Raw AI response:', response.text);
-      throw new Error('AI javobini qayta ishlashda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.');
+      return this.getFallbackAnalysis("AI javobini JSON formatida o'qib bo'lmadi. Iltimos, qayta urinib ko'ring.");
     }
   }
 
   async chat(_caseId: string, _history: unknown[], message: string) {
-    const chat = this.ai.chats.create({
+    const aiClient = this.getAiClient();
+    const chat = aiClient.chats.create({
       model: "gemini-3-flash-preview",
       config: {
         systemInstruction: `Siz "Abdulloh AI" tibbiy tahlilchi va diagnostika bo'yicha mutaxassisiz. O'zbek tilida gapirasiz. 

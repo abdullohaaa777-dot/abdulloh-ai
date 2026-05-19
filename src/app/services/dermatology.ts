@@ -105,10 +105,19 @@ export interface DermatologyDiagnosisResult {
   providedIn: 'root'
 })
 export class DermatologyService {
-  private ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  private ai: GoogleGenAI | null = (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY)
+    ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
+    : null;
   
   cases = signal<DermatologyCase[]>([]);
   
+
+  private ensureAiClient(): GoogleGenAI {
+    if (!this.ai) {
+      throw new Error('Dermatology AI sozlanmagan: GEMINI_API_KEY topilmadi.');
+    }
+    return this.ai;
+  }
   constructor() {
     this.init();
   }
@@ -117,7 +126,12 @@ export class DermatologyService {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('dermatologyCases');
       if (saved) {
-        this.cases.set(JSON.parse(saved));
+        try {
+          this.cases.set(JSON.parse(saved));
+        } catch (error) {
+          console.error('Failed to parse dermatologyCases from localStorage:', error);
+          this.cases.set([]);
+        }
       }
     }
   }
@@ -162,8 +176,16 @@ export class DermatologyService {
     const model = "gemini-3-flash-preview";
     const prompt = "Ushbu teri muammosi tasvirlangan rasmda nimalarni ko'ryapsiz? Faqat klinik belgilarni ayting.";
     
+    let aiClient: GoogleGenAI;
     try {
-      const response = await this.ai.models.generateContent({
+      aiClient = this.ensureAiClient();
+    } catch (error) {
+      console.error(error);
+      return "AI xizmati vaqtincha sozlanmagan (GEMINI_API_KEY yo'q).";
+    }
+
+    try {
+      const response = await aiClient.models.generateContent({
         model,
         contents: [{
           role: 'user',
@@ -192,12 +214,18 @@ export class DermatologyService {
     Vazifa: Bemorga keyingi eng muhim klinik savolni bering. Savol o'zbek tilida, professional va hamdard bo'lsin. 
     Faqat bitta savol bering. Agar barcha kerakli ma'lumotlar yig'ilgan bo'lsa, "DIAGNOSIS_READY" deb javob bering.`;
 
-    const response = await this.ai.models.generateContent({
-      model,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
-    
-    return (response.text || '').trim();
+    try {
+      const aiClient = this.ensureAiClient();
+      const response = await aiClient.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+      
+      return (response.text || '').trim() || "Savol generatsiya qilinmadi. Iltimos, qayta urinib ko'ring.";
+    } catch (error) {
+      console.error('Dermatology question generation error:', error);
+      return "AI savol yaratishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.";
+    }
   }
 
   async generateDiagnosis(dCase: DermatologyCase): Promise<DermatologyDiagnosisResult> {
@@ -211,12 +239,18 @@ export class DermatologyService {
     
     Natija JSON formatida bo'lsin.`;
 
-    const response = await this.ai.models.generateContent({
-      model,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { responseMimeType: 'application/json' }
-    });
-    
-    return JSON.parse(response.text || '{}');
+    try {
+      const aiClient = this.ensureAiClient();
+      const response = await aiClient.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { responseMimeType: 'application/json' }
+      });
+
+      return JSON.parse(response.text || '{}');
+    } catch (error) {
+      console.error('Dermatology diagnosis generation error:', error);
+      throw new Error('Dermatology AI tashxisini yaratishda xatolik yuz berdi.');
+    }
   }
 }
