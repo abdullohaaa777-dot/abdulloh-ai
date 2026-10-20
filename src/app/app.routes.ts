@@ -20,6 +20,7 @@ export const routes: Routes = [
     path: '',
     component: DashboardComponent,
     children: [
+      { path: 'ecg', loadComponent: () => import('./components/ecg-assistant/ecg-assistant').then(m => m.EcgAssistant) },
       { path: 'dashboard', component: CaseListComponent },
       { path: 'digital-twin', component: DigitalTwinComponent },
       { path: 'dermatology-ai', component: DermatologyAIComponent },
