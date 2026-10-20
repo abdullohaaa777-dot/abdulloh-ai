@@ -4,6 +4,10 @@
   "outputDirectory": "dist/app/browser",
   "rewrites": [
     {
+      "source": "/api/ecg/:path*",
+      "destination": "/api/ecg"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -25,6 +25,7 @@ import { Router, RouterModule } from '@angular/router';
         </div>
 
         <nav class="flex-1 space-y-1 overflow-y-auto pr-2 custom-scrollbar">
+          <a routerLink="/ecg" class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50"><mat-icon>monitor_heart</mat-icon><span>AI EKG Assistant Pro</span></a>
           <a routerLink="/dashboard" routerLinkActive="bg-medical-primary text-white shadow-md shadow-medical-primary/20" 
              [routerLinkActiveOptions]="{exact: true}"
              class="flex items-center gap-3 p-3 rounded-xl text-medical-text-muted hover:bg-slate-50 transition-all">

@@ -18,3 +18,7 @@ View your app in AI Studio: https://ai.studio/apps/17a01f4c-674f-482a-9bd7-4a979
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## EKG research module
+
+See [configuration, supported formats, limitations and rollback](docs/ecg/IMPLEMENTATION.md). The module defaults to disabled and is not a clinically validated diagnostic device.
